@@ -99,12 +99,19 @@ window.AudioContext && (function (MIDI) {
 		};
 
 
+		// TODO MOVE TO DEBUG MODULE
+		function debug() {
+			console.log.apply(console, arguments)
+		}
+
+
 		/** noteOn/Off **/
 		MIDI.noteOn = function (channelId, noteId, velocity, delay) {
 			switch (typeof noteId) {
 				case 'number':
 					return noteOn.apply(null, arguments);
 				case 'string':
+					debug('noteOn', channelId, noteId, velocity, delay)
 					const noteNumber = MIDI.getNoteNumber(noteId)
 					return noteOn(channelId, noteNumber, velocity, delay)
 				case 'object':
@@ -117,7 +124,9 @@ window.AudioContext && (function (MIDI) {
 				case 'number':
 					return noteOff.apply(null, arguments);
 				case 'string':
-					break;
+					debug('noteOff', channelId, noteId, delay)
+					const noteNumber = MIDI.getNoteNumber(noteId)
+					return noteOff(channelId, noteNumber, delay)
 				case 'object':
 					return noteGroupOff.apply(null, arguments);
 			}
