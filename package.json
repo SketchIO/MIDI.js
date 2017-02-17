@@ -1,5 +1,5 @@
 {
-  "name": "midi",
+  "name": "midi-js",
   "version": "0.4.2",
   "license": "MIT",
   "description": "Library to assist in creating HTML5 MIDI apps.",
@@ -14,7 +14,7 @@
     "type": "git",
     "url": "git://github.com/mudcube/MIDI.js.git"
   },
-  "main": "./build/MIDI.min.js",
+  "main": "./build/MIDI.forNPM.js",
   "devDependencies": {
     "gulp": "^3.9.0",
     "gulp-concat": "^2.5.2",
@@ -22,6 +22,7 @@
     "gulp-minify-css": "^1.1.6",
     "gulp-rename": "^1.2.2",
     "gulp-uglify": "^1.2.0",
-    "gulp-useref": "^1.2.0"
+    "gulp-useref": "^1.2.0",
+    "gulp-wrap": "^0.13.0"
   }
 }
