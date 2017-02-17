@@ -1,12 +1,13 @@
 /*
-	----------------------------------------------------------
-	GM : 2015-10-18
-	----------------------------------------------------------
-*/
+ ----------------------------------------------------------
+ GM : 2015-10-18
+ ----------------------------------------------------------
+ */
 
 if (typeof MIDI === 'undefined') MIDI = {};
 
-(function (MIDI) { 'use strict';
+(function (MIDI) {
+	'use strict';
 
 	/** getProgram **/
 	MIDI.getProgram = function (program) {
@@ -18,16 +19,14 @@ if (typeof MIDI === 'undefined') MIDI = {};
 	};
 
 	function asId(name) {
-		return name.replace(/[^a-z0-9_ ]/gi, '').
-				    replace(/[ ]/g, '_').
-				    toLowerCase();
+		return name.replace(/[^a-z0-9_ ]/gi, '').replace(/[ ]/g, '_').toLowerCase();
 	};
-	
+
 	(function (categories) {
 		var GM = MIDI.GM = {};
 		var byId = MIDI.getProgram.byId = {};
 		var byName = MIDI.getProgram.byName = {};
-		
+
 		for (var category in categories) {
 			var programs = categories[category];
 			for (var i = 0, length = programs.length; i < length; i++) {
@@ -37,17 +36,17 @@ if (typeof MIDI === 'undefined') MIDI = {};
 					var name = program.replace(id + ' ', '');
 					var nameId = asId(name);
 					var categoryId = asId(category);
-					
+
 					var res = {
 						id: --id,
 						name: name,
 						nameId: nameId,
 						category: category
 					};
-					
+
 					byId[id] = res;
 					byName[nameId] = res;
-					
+
 					GM[categoryId] = GM[categoryId] || [];
 					GM[categoryId].push(res);
 				}
@@ -86,7 +85,7 @@ if (typeof MIDI === 'undefined') MIDI = {};
 			toNote[name] = n;
 			toName[n] = name;
 		}
-	
+
 		MIDI.getNoteName = function (value) {
 			if (value in toNote) {
 				return value;
@@ -94,7 +93,7 @@ if (typeof MIDI === 'undefined') MIDI = {};
 				return toName[value];
 			}
 		};
-	
+
 		MIDI.getNoteNumber = function (value) {
 			if (value in toName) {
 				return value;

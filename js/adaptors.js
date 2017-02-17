@@ -1,12 +1,14 @@
 /*
-	----------------------------------------------------------------------
-	adaptors
-	----------------------------------------------------------------------
-*/
+ ----------------------------------------------------------------------
+ adaptors
+ ----------------------------------------------------------------------
+ */
 
 if (typeof MIDI === 'undefined') MIDI = {};
+if (typeof MIDI.Soundfont === 'undefined') MIDI.Soundfont = {};
 
-(function (MIDI) { 'use strict';
+(function (MIDI) {
+	'use strict';
 
 	var _adaptor = MIDI.adaptor = {};
 	var _adaptors = MIDI.adaptors = {};
@@ -16,94 +18,99 @@ if (typeof MIDI === 'undefined') MIDI = {};
 		if (args.tech === 'midiapi') {
 			return _adaptors.midiapi.connect(args);
 		} else {
-			return requestQueue(args);
+			return loadPrograms(args);
 		}
 	};
 
-	function requestQueue(args) {
+	// TODO Replace with the debug module - much better output
+	function debug() {
+		console.log.apply(arguments)
+	}
+
+	/**
+	 * Sum an array of numbers
+	 * @param {number[]} anArrayOfNumbers
+	 * @returns {number}
+	 */
+	function sum(anArrayOfNumbers) {
+		return anArrayOfNumbers.reduce(function (a, b) {
+			return a + b
+		}, 0)
+	}
+
+	/**
+	 * Reach out to a server and get a Soundfont
+	 * TODO Move to loader
+	 * @param {string} programID - The name of the program to load
+	 * @param {string} audioFormat - The preferred audio format
+	 * @param {function} onProgress
+	 * @returns {Promise}
+	 */
+	function fetchSoundfont(programID, audioFormat, onProgress) {
 		return new Promise(function (resolve, reject) {
-			var audioFormat = _adaptor.format.split('_').shift();
-			var programs = args.instruments;
-			var onprogress = args.onprogress;
-			var tech = args.tech;
-			
-			var length = programs.length;
-			var pending = length;
-
-			for (var i = 0; i < length; i ++) {
-				var programId = programs[i];
-				var request = _requests[programId] || (_requests[programId] = {});
-
-				if (request.loaded) {
-					waitForEnd();
-				} else if (request.loading) {
-					request.queue.push(resolve);
-				} else {
-					request.queue = [resolve];
-					request.loading = true;
-
-					sendRequest(programId, audioFormat, function (e, progress) {
-						var transferring = progress / length;
-						var completed = (length - pending) / length;
-						emitProgress(transferring + completed, programId);
-					}).then(function () {
-						waitForEnd();
-					}).catch(reject);
-				}
-			}
-
-			function emitProgress(progress, programId) {
-				if (emitProgress.progress !== progress) {
-					emitProgress.progress = progress;
-					onprogress && onprogress('load', progress, programId);
-				}
-			}
-			
-			function waitForEnd() {
-				if (!--pending) {
-					emitProgress(1.0);
-					_adaptors[tech].connect(args).then(function () {
-						programs.forEach(function (programId) {
-							var request = _requests[programId];
-							var cb;
-							while(cb = request.queue.pop()) {
-								cb();
-							}
-						});
-					}).catch(reject);
-				}
+			const soundfontPath = MIDI.PATH + programID + '-' + audioFormat + '.js';
+			if (MIDI.USE_XHR) {
+				galactic.request({
+					url: soundfontPath,
+					format: 'text',
+					onerror: reject,
+					onprogress: onProgress,
+					onsuccess: function (event, responseText) {
+						const script = document.createElement('script');
+						script.language = 'javascript';
+						script.type = 'text/javascript';
+						script.text = responseText;
+						document.body.appendChild(script);
+						resolve();
+					}
+				});
+			} else {
+				dom.loadScript.add({
+					url: soundfontPath,
+					verify: 'MIDI.Soundfont["' + programID + '"]',
+					onerror: reject,
+					onsuccess: resolve
+				});
 			}
 		});
+	}
 
-		function sendRequest(programId, audioFormat, onprogress) {
-			return new Promise(function (resolve, reject) {
-				var soundfontPath = MIDI.PATH + programId + '-' + audioFormat + '.js';
-				if (MIDI.USE_XHR) {
-					galactic.request({
-						url: soundfontPath,
-						format: 'text',
-						onerror: reject,
-						onprogress: onprogress,
-						onsuccess: function (event, responseText) {
-							var script = document.createElement('script');
-							script.language = 'javascript';
-							script.type = 'text/javascript';
-							script.text = responseText;
-							document.body.appendChild(script);
-							resolve();
-						}
-					});
-				} else {
-					dom.loadScript.add({
-						url: soundfontPath,
-						verify: 'MIDI.Soundfont["' + programId + '"]',
-						onerror: reject,
-						onsuccess: resolve
-					});
-				}
-			});
-		}
-	};
+	/**
+	 * Load a bunch of programs
+	 * TODO Move to loader
+	 * @param {Object} args
+	 * @returns {Promise.<TResult>}
+	 */
+	function loadPrograms(args) {
+		const audioFormat = _adaptor.format.split('_').shift();
+		const programs = args.instruments;
+		const onProgress = args.onprogress;
+		const tech = args.tech;
+
+		let progressParts = []
+		const jobs = programs.map(function (programID, i) {
+			debug('Ensuring', programID, 'exists')
+
+			if (MIDI.Soundfont[programID]) {
+				debug(programID, 'is already in the sound bank!')
+				return Promise.resolve()
+			}
+
+			debug(programID, 'is not in the sound bank; loading...')
+			return fetchSoundfont(programID, audioFormat, function (e, currentProgress) {
+				debug('Loading', programID, ':', currentProgress)
+				progressParts[i] = currentProgress
+				onProgress('load', sum(progressParts) / programs.length)
+			})
+		})
+
+		return Promise.all(jobs).then(function () {
+			return MIDI.adaptors[tech].connect(args)
+		}).catch(function (error) {
+			console.log('An error occurred in MIDI.adaptors.loadPrograms')
+			console.log(error)
+		})
+	}
 
 
 	/* resetAdaptor */
@@ -149,7 +156,7 @@ if (typeof MIDI === 'undefined') MIDI = {};
 					} else {
 						channel.program = programId;
 					}
-					
+
 					var wrapper = MIDI.messageHandler.program || programHandler;
 					if (wrapper) {
 						wrapper(channelId, programId, delay);
@@ -157,7 +164,7 @@ if (typeof MIDI === 'undefined') MIDI = {};
 				}
 			}
 		};
-	
+
 		function programHandler(channelId, program, delay) {
 			if (MIDI.adaptor.id) {
 				if (MIDI.player.playing) {
@@ -177,7 +184,7 @@ if (typeof MIDI === 'undefined') MIDI = {};
 			'mute': set('mute', false),
 			'volume': set('volume', 1.0)
 		});
-		
+
 		function set(_type, _value) {
 			return {
 				configurable: true,
@@ -197,15 +204,15 @@ if (typeof MIDI === 'undefined') MIDI = {};
 		MIDI.noteOn = handleErrorWrapper('noteOn');
 		MIDI.noteOff = handleErrorWrapper('noteOff');
 		MIDI.cancelNotes = handleErrorWrapper('cancelNotes');
-		
+		MIDI.setProperty = handleErrorWrapper('setProperty');
+
 		MIDI.setController = handleErrorWrapper('setController'); //- depreciate
 		MIDI.setEffects = handleErrorWrapper('setEffects'); //- depreciate
 		MIDI.setPitchBend = handleErrorWrapper('setPitchBend'); //- depreciate
-		MIDI.setProperty = handleErrorWrapper('setProperty');
 		MIDI.setVolume = handleErrorWrapper('setVolume'); //- depreciate
-		
+
 		MIDI.iOSUnlock = handleErrorWrapper('iOSUnlock');
-		
+
 		/* helpers */
 		function handleError(_type) {
 			MIDI.DEBUG && console.warn('The ' + _adaptor.id + ' adaptor does not support "' + _type + '".');
@@ -217,7 +224,7 @@ if (typeof MIDI === 'undefined') MIDI = {};
 			};
 		}
 	}
-	
+
 	resetAdaptor();
-	
+
 })(MIDI);

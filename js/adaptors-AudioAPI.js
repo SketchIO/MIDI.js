@@ -1,16 +1,28 @@
 /*
-	----------------------------------------------------------------------
-	adaptors-AudioAPI
-	----------------------------------------------------------------------
-	http://webaudio.github.io/web-audio-api/
-	----------------------------------------------------------------------
-*/
+ ----------------------------------------------------------------------
+ adaptors-AudioAPI
+ ----------------------------------------------------------------------
+ http://webaudio.github.io/web-audio-api/
+ ----------------------------------------------------------------------
 
-window.AudioContext && (function () { 'use strict';
+
+ class SinkPlugin {
+ noteOn() {}
+ noteOff() {}
+
+ chordOn() {}
+ chordOff() {}
+
+ clearBuffers() {}
+ }
+ */
+
+window.AudioContext && (function (MIDI) {
+	'use strict';
 
 	var adaptors = MIDI.adaptors;
 	var midi = adaptors.audioapi = {};
-	
+
 	var _ctx = createAudioContext();
 	var _buffers = {}; // downloaded & decoded audio buffers
 	var _requests = adaptors._requests; // queue
@@ -32,7 +44,7 @@ window.AudioContext && (function () { 'use strict';
 		_apply.volume = function (source) {
 			var node = source.gainNode.gain;
 			var channel = source._channel;
-			
+
 			/* set value */
 			if (MIDI.mute || channel.mute) {
 				node.value = 0.0;
@@ -40,7 +52,7 @@ window.AudioContext && (function () { 'use strict';
 				var volume = MIDI.volume * channel.volume * source._volume;
 				node.value = Math.min(2.0, Math.max(0.0, volume));
 			}
-			
+
 			/* reschedule fadeout */
 			if (node._fadeout) {
 				node.cancelScheduledValues(_ctx.currentTime);
@@ -56,22 +68,24 @@ window.AudioContext && (function () { 'use strict';
 				var channel = source._channel;
 				var detune = MIDI.detune + channel.detune;
 				if (detune) {
-					source.detune.value = detune; // -1200 to 1200 - value in cents [100 cents per semitone]
+					source.detune.value = detune; // -1200 to 1200 - value in cents [100
+																				// cents per semitone]
 				}
 			}
 		};
-		
+
 
 		/** fx **/
 		_apply.fx = function (source) {
 			var channel = source._channel;
 			var chain = source.gainNode;
-			
+
 			source.disconnect(0);
 			source.connect(chain);
-			
+
 			apply(MIDI.fxNodes); // apply master effects
-			apply(channel.fxNodes); // apply channel effects //- trigger refresh when this changes
+			apply(channel.fxNodes); // apply channel effects //- trigger refresh when
+															// this changes
 
 			function apply(nodes) {
 				if (nodes) {
@@ -84,21 +98,22 @@ window.AudioContext && (function () { 'use strict';
 			};
 		};
 
-		
+
 		/** noteOn/Off **/
 		MIDI.noteOn = function (channelId, noteId, velocity, delay) {
-			switch(typeof noteId) {
+			switch (typeof noteId) {
 				case 'number':
 					return noteOn.apply(null, arguments);
 				case 'string':
-					break;
+					const noteNumber = MIDI.getNoteNumber(noteId)
+					return noteOn(channelId, noteNumber, velocity, delay)
 				case 'object':
 					return noteGroupOn.apply(null, arguments);
 			}
 		};
 
 		MIDI.noteOff = function (channelId, noteId, delay) {
-			switch(typeof noteId) {
+			switch (typeof noteId) {
 				case 'number':
 					return noteOff.apply(null, arguments);
 				case 'string':
@@ -118,7 +133,7 @@ window.AudioContext && (function () { 'use strict';
 					stopChannel(channelId);
 				}
 			}
-			
+
 			function stopChannel(channelId) {
 				loopChannel(channelId, function (sources, source) {
 					fadeOut(sources, source);
@@ -139,94 +154,57 @@ window.AudioContext && (function () { 'use strict';
 			}
 		};
 
+		// TODO Use the debug module - much better
+		function debug() {
+			console.log.apply(console, arguments)
+		}
+
 
 		/** connect **/
 		return new Promise(function (resolve, reject) {
+			debug('Connecting WebAudio')
 			if (window.Tuna) {
 				if (!(_ctx.tunajs instanceof Tuna)) {
 					_ctx.tunajs = new Tuna(_ctx);
 				}
 			}
-			
+
 			var soundfonts = MIDI.Soundfont;
-			var requests = Object.keys(soundfonts);
-			for (var programId in soundfonts) {
-				var program = MIDI.getProgram(programId);
-				if (program) {
-					var request = _requests[programId] || (_requests[programId] = {});
-					if (request.loaded) {
-						continue;
-					} else if (request.decoding) {
-						request.queue.push(resolve);
-					} else {
-						request.decoding = true;
-						request.queue.push(resolve);
-						request.pending = 0;
-						
-						var soundfont = soundfonts[programId];
-						for (var noteName in soundfont) {
-							loadAudio(programId, program.id, noteName);
-						}
-					}
-				}
-			}
-			
-			setTimeout(waitForEnd, 0);
-
-			/* helpers */
-			function waitForEnd() {
-				for (var i = 0; i < requests.length; i ++) {
-					var program = requests[i];
-					var request = _requests[program];
-					if (request.pending) {
-						return;
-					}
-				}
-				for (var i = 0; i < requests.length; i ++) {
-					var program = requests[i];
-					var request = _requests[program];
-					var cb;
-					while(cb = request.queue.pop()) {
-						cb();
-					}
-				}
-			}
-
-			function loadAudio(program, programId, noteName) {
-				var request = _requests[program];
-				var soundfont = soundfonts[program];
-				var path = soundfont[noteName];
-				if (path) {
-					request.pending ++;
-					loadBuffer(path).then(function (buffer) {
+			for (var programID in soundfonts) {
+				debug('Processing', programID)
+				var program = MIDI.getProgram(programID)
+				var soundfont = soundfonts[programID]
+				const noteNames = Object.keys(soundfont)
+				const jobs = noteNames.map(function (noteName) {
+					debug('Loading buffer:', noteName)
+					return loadBuffer(soundfont[noteName]).then(function (buffer) {
 						buffer.id = noteName;
-						
 						var noteId = MIDI.getNoteNumber(noteName);
-						var bufferId = programId + 'x' + noteId;
+						var bufferId = program.id + 'x' + noteId;
+						debug('Buffer loaded', noteName, buffer)
 						_buffers[bufferId] = buffer;
-
-						if (!--request.pending) {
-							request.decoding = false;
-							request.loading = false;
-							request.loaded = true;
-							
-							MIDI.DEBUG && console.log('loaded: ', program);
-							
-							waitForEnd();
-						}
 					}).catch(function (err) {
-						MIDI.DEBUG && console.error('audio could not load', arguments);
-					});
-				}
+						debug('An error occurred in MIDI.adaptors.WebAudio.connect')
+						debug(err)
+					})
+				})
+				Promise.all(jobs).then(function () {
+					debug('All notes have been processed')
+					resolve()
+				}).catch(function(error) {
+					debug('An error occurred in MIDI.adaptors.WebAudio.connect')
+					debug(error)
+					reject(error)
+				})
 			}
 		});
-		
+
 		function noteOn(channelId, noteId, velocity, delay) {
 			delay = delay || 0;
 
 			var source;
 			var sourceId;
-			
+
 			var volume = MIDI.volume;
 			if (volume) {
 				var channel = MIDI.channels[channelId];
@@ -236,19 +214,19 @@ window.AudioContext && (function () { 'use strict';
 				if (buffer) {
 					source = _ctx.createBufferSource();
 					source.buffer = buffer;
-					
+
 					source.gainNode = _ctx.createGain();
 					source.gainNode.connect(_ctx.destination);
-					
+
 					source._channel = channel;
 					source._volume = velocity;
-					
+
 					_apply.volume(source);
 					_apply.detune(source);
 					_apply.fx(source);
-					
+
 					source.start(delay + _ctx.currentTime);
-					
+
 					_scheduled[channelId] = _scheduled[channelId] || {};
 					_scheduled[channelId][noteId] = _scheduled[channelId][noteId] || [];
 					_scheduled[channelId][noteId].push(source);
@@ -263,12 +241,12 @@ window.AudioContext && (function () { 'use strict';
 				}
 			};
 		}
-		
+
 
 		/** noteOn/Off **/
 		function noteOff(channelId, noteId, delay) {
 			delay = delay || 0;
-			
+
 			var channels = _scheduled[channelId];
 			if (channels) {
 				var sources = channels[noteId];
@@ -285,7 +263,7 @@ window.AudioContext && (function () { 'use strict';
 				}
 			};
 		}
-	
+
 		function noteGroupOn(channel, chord, velocity, delay) {
 			var res = {};
 			for (var n = 0, note, len = chord.length; n < len; n++) {
@@ -313,9 +291,9 @@ window.AudioContext && (function () { 'use strict';
 			gain._startAt = startAt;
 			gain.linearRampToValueAtTime(gain.value, startAt);
 			gain.linearRampToValueAtTime(0.0, startAt + 0.3);
-			
+
 			source.stop(startAt + 0.5);
-			
+
 			setTimeout(function () {
 				sources.shift();
 			}, delay * 1000);
@@ -334,14 +312,14 @@ window.AudioContext && (function () { 'use strict';
 					};
 					xhr.send();
 				}
-				
+
 				function decode(buffer) {
 					_ctx.decodeAudioData(buffer, resolve, reject);
 				}
 			});
 		}
 	};
-	
+
 	function base64ToBuffer(uri) {
 		uri = uri.split(',');
 		var binary = atob(uri[1]);
@@ -366,7 +344,7 @@ window.AudioContext && (function () { 'use strict';
 		try {
 			source.detune.value = 1200;
 			return true;
-		} catch(e) {
+		} catch (e) {
 			return false;
 		}
 	}
@@ -376,7 +354,7 @@ window.AudioContext && (function () { 'use strict';
 		for (var noteId in channel) {
 			var sources = channel[noteId];
 			var source;
-			for (var i = 0; i < sources.length; i ++) {
+			for (var i = 0; i < sources.length; i++) {
 				cb(sources, sources[i]);
 			}
 		}
@@ -393,14 +371,14 @@ window.AudioContext && (function () { 'use strict';
 					_ctx = ctx;
 				}
 			},
-			
+
 			/* effects */
 			'detune': set('number', 0, handler('detune')),
 			'fx': set('object', null, handler('fx')),
 			'mute': set('boolean', false, handler('volume')),
 			'volume': set('number', 1.0, handler('volume'))
 		});
-	
+
 		function set(_format, _value, _handler) {
 			return {
 				configurable: true,
@@ -421,7 +399,7 @@ window.AudioContext && (function () { 'use strict';
 				MIDI.setProperty(type);
 			};
 		}
-		
+
 		MIDI.setProperty = function (type, channelId) {
 			if (_apply[type]) {
 				if (isFinite(channelId)) {
@@ -432,10 +410,10 @@ window.AudioContext && (function () { 'use strict';
 					for (var channelId in _scheduled) {
 						setFX(channelId);
 					}
-				
+
 				}
 			}
-			
+
 			function setFX() {
 				loopChannel(channelId, function (sources, source) {
 					_apply[type](source);
@@ -450,7 +428,7 @@ window.AudioContext && (function () { 'use strict';
 				}
 				if (_ctx.tunajs) {
 					var fx = channel.fx;
-					for (var i = 0; i < fx.length; i ++) {
+					for (var i = 0; i < fx.length; i++) {
 						var data = fx[i];
 						var type = data.type;
 						var effect = new _ctx.tunajs[type](data);
@@ -464,4 +442,4 @@ window.AudioContext && (function () { 'use strict';
 		};
 	}
 
-})();
+})(MIDI);
