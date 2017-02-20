@@ -13,7 +13,7 @@
  chordOn() {}
  chordOff() {}
 
- clearBuffers() {}
+ stopAll() {}
  }
  */
 
