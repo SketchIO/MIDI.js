@@ -1,14 +1,114 @@
 /*
-	----------------------------------------------------------
-	MIDI/loader : 2015-12-22 : https://mudcu.be
-	----------------------------------------------------------
-	https://github.com/mudcube/MIDI.js
-	----------------------------------------------------------
-*/
+ ----------------------------------------------------------
+ MIDI/loader : 2015-12-22 : https://mudcu.be
+ ----------------------------------------------------------
+ https://github.com/mudcube/MIDI.js
+ ----------------------------------------------------------
+ */
 
 if (typeof MIDI === 'undefined') MIDI = {};
 
-(function (MIDI) { 'use strict';
+MIDI.AUDIO_FORMATS = ['mp3', 'ogg']
+MIDI.AUTOSELECT = 'autoselect'
+MIDI.Controller = function({
+	format = MIDI.AUTOSELECT,
+	soundModule = MIDI.AUTOSELECT
+}) {
+	this.debug = debug('MIDI.js:MIDIController')
+	this.isReady = AudioSupports().then((supports) => {
+		this.format = format === MIDI.AUTOSELECT ? MIDI.AUDIO_FORMATS.find(f => supports[f]) : format
+		if(!this.format) {
+			this.debug('An acceptable audio format could not be found. (Desired format: %s) (Available formats: %o)', format, MIDI.AUDIO_FORMATS)
+			throw new Error(`An acceptable audio format could not be found (Desired format: ${format}) (Available formats: ${MIDI.AUDIO_FORMATS})`)
+		}
+
+		if(soundModule === MIDI.AUTOSELECT) {
+			const findAdaptor = ([adaptor, tail]) => {
+				const canPlayThrough = supports[adaptor]
+				if(!canPlayThrough[this.format]) {
+					debug('The "%s" adapter cannot play the "%s" format. It will be skipped.', adapter, this.format)
+				}
+			}
+			findAdaptor([location.hash.substr(1), 'midiapi', 'audioapi', 'audio'])
+		}
+
+		function loadAdaptor(tech) {
+			var format = MIDI.adaptor.format;
+			var canPlayThrough = supports[tech];
+			if (!canPlayThrough[format]) {
+				handleError();
+				return;
+			}
+
+			args.tech = tech;
+
+			MIDI.loadProgram(args).then(function () {
+				resolve();
+			}).catch(function (err) {
+				MIDI.DEBUG && console.error(tech, err);
+				handleError(err);
+			});
+
+			function handleError(err) {
+				var idx = parseInt(_adaptorPriority[tech]) + 1;
+				var nextAdaptor = Object.keys(_adaptorPriority)[idx];
+				if (nextAdaptor) {
+					loadAdaptor(nextAdaptor);
+				} else {
+					reject && reject({
+						message: 'All plugins failed.'
+					});
+				}
+			}
+		}
+	})
+}
+
+MIDI.Controller.prototype = {
+	constructor: MIDI.Controller,
+
+	loadProgram(args) {
+		args || (args = {});
+		typeof args === 'object' || (args = {instrument: args});
+		args.instruments = instrumentList();
+		args.tech = args.tech || MIDI.adaptor.id;
+
+		return MIDI.adaptors._load(args);
+
+		/* helpers */
+		function instrumentList() {
+			var programs = args.instruments || args.instrument || MIDI.channels[0].program;
+			if (typeof programs === 'object') {
+				Array.isArray(programs) || (programs = Object.keys(programs));
+			} else {
+				if (programs === undefined) {
+					programs = [];
+				} else {
+					programs = [programs];
+				}
+			}
+
+			/* program number -> id */
+			for (var n = 0; n < programs.length; n++) {
+				var programId = programs[n];
+				if (programId >= 0) {
+					var program = MIDI.getProgram(programId);
+					if (program) {
+						programs[n] = program.nameId;
+					}
+				}
+			}
+			if (programs.length === 0) {
+				programs = ['acoustic_grand_piano'];
+			}
+			return programs;
+		}
+	}
+}
+
+
+;(function (MIDI) {
+	'use strict';
 
 	if (console && console.log) {
 		console.log('%c♥ MIDI.js 0.4.2 ♥', 'color: red;');
@@ -31,91 +131,29 @@ if (typeof MIDI === 'undefined') MIDI = {};
 		'mp3': 1
 	};
 
+	let _CONTROLLER
+
 	/** setup **/
 	MIDI.setup = function (args) {
-		return new Promise(function (resolve, reject) {
-			args = args || {};
-			if (typeof args === 'function') args = {onsuccess: args};
+		args = args || {};
+		if (typeof args === 'function') args = {onsuccess: args};
 
-			if (isFinite(args.debug)) {
-				MIDI.DEBUG = !!args.debug;
-			}
+		if (isFinite(args.debug)) {
+			MIDI.DEBUG = !!args.debug;
+		}
 
-			/* custom paths */
-			if (args.soundfontUrl) {
-				MIDI.PATH = args.soundfontUrl;
-			}
+		/* custom paths */
+		if (args.soundfontUrl) {
+			MIDI.PATH = args.soundfontUrl;
+		}
 
-			/* choose adaptor */
-			AudioSupports().then(function (supports) {
-				if (chooseFormat()) {
-					chooseAdaptor();
-				} else {
-					reject({
-						message: 'MIDIJS: Browser does not have necessary audio support.'
-					});
-				}
+		_CONTROLLER = new MIDI.Controller({
 
-				function chooseFormat() {
-
-					/* empty object */
-					for (var key in MIDI.adaptor) {
-						delete MIDI.adaptor[key];
-					}
-
-					/* choose format based on priority */
-					for (var format in _formatPriority) {
-						if (supports[format]) {
-							MIDI.adaptor.format = format;
-							return true; // yay!
-						}
-					}
-				}
-
-				function chooseAdaptor() {
-					if (supports[location.hash.substr(1)]) {
-						loadAdaptor(location.hash.substr(1));
-					} else if (supports.midi_api) {
-						loadAdaptor('midiapi');
-					} else if (window.AudioContext) {
-						loadAdaptor('audioapi');
-					} else if (window.Audio) {
-						loadAdaptor('Audio');
-					}
-				}
-
-				function loadAdaptor(tech) {
-					var format = MIDI.adaptor.format;
-					var canPlayThrough = supports[tech];
-					if (!canPlayThrough[format]) {
-						handleError();
-						return;
-					}
-
-					args.tech = tech;
-
-					MIDI.loadProgram(args).then(function () {
-						resolve();
-					}).catch(function (err) {
-						MIDI.DEBUG && console.error(tech, err);
-						handleError(err);
-					});
-
-					function handleError(err) {
-						var idx = parseInt(_adaptorPriority[tech]) + 1;
-						var nextAdaptor = Object.keys(_adaptorPriority)[idx];
-						if (nextAdaptor) {
-							loadAdaptor(nextAdaptor);
-						} else {
-							reject && reject({
-								message: 'All plugins failed.'
-							});
-						}
-					}
-				}
-			}, reject);
-		});
-	};
+		})
+		return _CONTROLLER.isReady.then(function() {
+			MIDI.adaptor.format = _CONTROLLER.format
+		})
+	}
 
 
 	/** loadProgram **/
@@ -141,7 +179,7 @@ if (typeof MIDI === 'undefined') MIDI = {};
 			}
 
 			/* program number -> id */
-			for (var n = 0; n < programs.length; n ++) {
+			for (var n = 0; n < programs.length; n++) {
 				var programId = programs[n];
 				if (programId >= 0) {
 					var program = MIDI.getProgram(programId);
