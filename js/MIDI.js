@@ -8,6 +8,7 @@
 
 const Debug = require('debug')
 const debug = Debug('MIDI.js:root')
+const testAudio = require('./testAudio')
 
 if (console && console.log) {
 	console.log('%c♥ MIDI.js 0.4.2 ♥', 'color: red;')
@@ -51,7 +52,7 @@ const MIDI = {
 
 	autoselectFormat() {
 		debug('Autoselecting an audio format from the following choices: %o', AUDIO_FORMATS)
-		const autoselectOp = AudioSupports().then(function (supports) {
+		const autoselectOp = testAudio().then(function (supports) {
 			const format = AUDIO_FORMATS.find(function (format) {
 				return supports[format]
 			})
