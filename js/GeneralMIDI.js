@@ -4,24 +4,18 @@
 	----------------------------------------------------------
 */
 
-if (typeof MIDI === 'undefined') MIDI = {};
-
-(function (MIDI) { 'use strict';
-
-	/** getProgram **/
-	MIDI.getProgram = function (program) {
+module.exports = {
+	getProgram(program) {
 		if (typeof program === 'string') {
-			return MIDI.getProgram.byName[asId(program)];
+			return this.getProgram.byName[asId(program)];
 		} else {
-			return MIDI.getProgram.byId[program];
+			return this.getProgram.byId[program];
 		}
-	};
+	},
 
 	function asId(name) {
-		return name.replace(/[^a-z0-9_ ]/gi, '').
-				    replace(/[ ]/g, '_').
-				    toLowerCase();
-	};
+		return name.replace(/[^a-z0-9_ ]/gi, '').replace(/[ ]/g, '_').toLowerCase()
+	},
 	
 	(function (categories) {
 		var GM = MIDI.GM = {};
@@ -33,8 +27,10 @@ if (typeof MIDI === 'undefined') MIDI = {};
 			for (var i = 0, length = programs.length; i < length; i++) {
 				var program = programs[i];
 				if (program) {
-					var id = parseInt(program.substr(0, program.indexOf(' ')), 10);
-					var name = program.replace(id + ' ', '');
+					const [idString, ...nameParts] = program.split(' ')
+					const id = parseInt(idString, 10)
+					const name = nameParts.join(' ')
+
 					var nameId = asId(name);
 					var categoryId = asId(category);
 					

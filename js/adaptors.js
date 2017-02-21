@@ -190,32 +190,6 @@ if (typeof MIDI === 'undefined') MIDI = {};
 				}
 			};
 		}
-
-
-		/* functions */
-		MIDI.send = handleErrorWrapper('send');
-		MIDI.noteOn = handleErrorWrapper('noteOn');
-		MIDI.noteOff = handleErrorWrapper('noteOff');
-		MIDI.cancelNotes = handleErrorWrapper('cancelNotes');
-		
-		MIDI.setController = handleErrorWrapper('setController'); //- depreciate
-		MIDI.setEffects = handleErrorWrapper('setEffects'); //- depreciate
-		MIDI.setPitchBend = handleErrorWrapper('setPitchBend'); //- depreciate
-		MIDI.setProperty = handleErrorWrapper('setProperty');
-		MIDI.setVolume = handleErrorWrapper('setVolume'); //- depreciate
-		
-		MIDI.iOSUnlock = handleErrorWrapper('iOSUnlock');
-		
-		/* helpers */
-		function handleError(_type) {
-			MIDI.DEBUG && console.warn('The ' + _adaptor.id + ' adaptor does not support "' + _type + '".');
-		}
-
-		function handleErrorWrapper(_type) {
-			return function () {
-				handleError(_type);
-			};
-		}
 	}
 	
 	resetAdaptor();

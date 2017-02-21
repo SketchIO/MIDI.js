@@ -3,8 +3,6 @@
 <head>
 	<meta http-equiv="content-type" content="text/html; charset=utf-8" />
 
-	<script src="https://wzrd.in/standalone/debug@latest"></script>
-
 	<!-- shims -->
 	<script src="../inc/shim/Base64.js"></script>
 	<script src="../inc/shim/WebAudioAPI.js"></script>
@@ -16,38 +14,33 @@
 	<script src="../inc/AudioSupports.js"></script>
 	<script src="../inc/EventEmitter.js"></script>
 
-	<!-- midi.js -->
-	<script src="../js/loader.js"></script>
-	<script src="../js/adaptors.js"></script>
-	<script src="../js/adaptors-Audio.js"></script>
-	<script src="../js/adaptors-AudioAPI.js"></script>
-	<script src="../js/adaptors-MIDI.js"></script>
-	<script src="../js/channels.js"></script>
-	<script src="../js/gm.js"></script>
-	<script src="../js/player.js"></script>
-	<script src="../js/synesthesia.js"></script>
+	<script src="../build/MIDI.js"></script>
 
 </head>
 <body>
 <script>
 
 window.onload = function () {
-	MIDI.setup({
-		soundfontUrl: "./soundfont/",
-		instrument: "acoustic_grand_piano",
-		onprogress: function (state, progress) {
-			console.log(state, progress);
+	MIDI.startDebugging()
+	MIDI.WebAudioSM.connect()
+	MIDI.autoselectFormat()
+	MIDI.loadProgram({
+		intoSlot: 0,
+		filename: './soundfont/acoustic_grand_piano-%FORMAT.json',
+		onProgress(state, progress) {
+			console.log('Loading:', progress.toFixed(2), '%')
 		}
-	}).then(function () {
-		var delay = 0; // play one note every quarter second
-		var note = 50; // the MIDI note
-		var velocity = 127; // how hard the note hits
-		// play the note
-		MIDI.setVolume(0, 127);
-		MIDI.noteOn(0, note, velocity, delay);
-		MIDI.noteOff(0, note, delay + 0.75);
-	});
-};
+	})
+	MIDI.isReady().then(function() {
+		var delay = 0 // play one note every quarter second
+		var note = 50 // the MIDI note
+		var velocity = 127 // how hard the note hits
+
+		MIDI.setVolume(0, 127)
+		MIDI.noteOn(0, note, velocity, delay)
+		MIDI.noteOff(0, note, delay + 0.75)
+	})
+}
 
 </script>
 </body>

@@ -6,7 +6,7 @@ TODO
 	* Loading progress feedback example
 	------------------------------------------------------
 	* Document how to support from file://
-		<script src="./soundfont/acoustic_grand_piano-ogg.js"></script>
+		<script src="./soundfont/acoustic_grand_piano-ogg.json"></script>
 	------------------------------------------------------
 	* better on event listeners for MIDIPlayer, get inspiration from these?
 		https://github.com/hhromic/midi-utils-js
