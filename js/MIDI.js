@@ -4,16 +4,13 @@ const testAudio = require('./testAudio')
 const actionStack = require('./actionStack')
 const basicProperties = require('./basicProperties')
 
-if (console && console.log) {
-	console.log('%c♥ MIDI.js 0.4.2 ♥', 'color: red;')
-}
-
 const AUDIO_FORMATS = ['mp3', 'ogg']
 const AUTOSELECT = 'autoselect'
 const NOOP = function () {
 }
 
 const MIDI = {
+	VERSION: require('../package.json').version,
 	AUDIO_FORMATS,
 	AUTOSELECT,
 
@@ -207,3 +204,7 @@ ChannelProxy.onConstruct(function (channelProxy) {
 
 module.exports = MIDI
 module.exports.WebAudio = require('./WebAudio')
+
+if (console && console.log) {
+	console.log(`%c♥ MIDI.js ${MIDI.VERSION} ♥`, 'color: red;')
+}
