@@ -7,20 +7,25 @@ function scaleRange(value, a1, a2, b1, b2) {
 	return (value - a1) * ((b2 - b1) / (a2 - a1)) + b1
 }
 
-function SoundTask({
+function ScheduledSound({
+	channelID,
+	noteID,
+
 	inContext,
 	audioBuffer,
-	channelID,
 	delay,
 	velocity,
 }) {
+	this.channelID = channelID
+	this.noteID = noteID
+
 	this.ctx = inContext
 	this.isEnding = false
 	this.startTime = delay + this.ctx.currentTime
 	this.endTime = -Infinity
-	this.channelID = channelID
 	this.velocity = velocity
 	const onEnded = this.onEnded = actionStack()
+
 	debug('A sound will start soon: %o', {
 		ctx: inContext,
 		audioBuffer,
@@ -42,8 +47,8 @@ function SoundTask({
 	this.updateProperties()
 }
 
-SoundTask.prototype = {
-	constructor: SoundTask,
+ScheduledSound.prototype = {
+	constructor: ScheduledSound,
 
 	cancelImmediately() {
 		source.stop()
@@ -78,12 +83,18 @@ SoundTask.prototype = {
 	},
 
 	scheduleFadeOut(time) {
+		const RELEASE = 0.3
+		if(!time) {
+			time = this.ctx.currentTime + RELEASE
+		}
+
 		// @Miranet: 'the values of 0.2 and 0.3 could of course be used as
 		// a 'release' parameter for ADSR like time settings.'
 		// add { 'metadata': { release: 0.3 } } to soundfont files
-		this.gain.cancelScheduledValues(this.ctx.currentTime)
-		this.gain.linearRampToValueAtTime(this.gain.value, time)
-		this.gain.linearRampToValueAtTime(0.0, time + 0.3)
+		this.isEnding = true
+		this.gain.gain.cancelScheduledValues(this.ctx.currentTime)
+		this.gain.gain.linearRampToValueAtTime(this.gain.value, time)
+		this.gain.gain.linearRampToValueAtTime(0.0, time + RELEASE)
 		this.source.stop(time + 0.5)
 	},
 
@@ -110,4 +121,4 @@ SoundTask.prototype = {
 	}
 }
 
-module.exports = SoundTask
+module.exports = ScheduledSound

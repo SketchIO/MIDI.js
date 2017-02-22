@@ -206,4 +206,4 @@ ChannelProxy.onConstruct(function (channelProxy) {
 })
 
 module.exports = MIDI
-module.exports.WebAudioSM = require('./WebAudioSM')
+module.exports.WebAudio = require('./WebAudio')

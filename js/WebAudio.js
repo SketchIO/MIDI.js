@@ -4,7 +4,7 @@ const debug = Debug('MIDI.js:WebAudioSM')
 const MIDI = require('./MIDI')
 const GeneralMIDI = require('./GeneralMIDI')
 const dataURI = require('./dataURI')
-const SoundTask = require('./SoundTask')
+const ScheduledSound = require('./ScheduledSound')
 const ChannelProxy = require('./ChannelProxy')
 
 const ctx = createAudioContext()
@@ -14,25 +14,25 @@ bufferDB.id = function (programID, noteID) {
 	return `${programID}x${noteID}`
 }
 
-const tasks = []
-tasks.selectTasksRequiringUpdate = function (object) {
+const scheduledSounds = []
+scheduledSounds.selectScheduledSoundsRequiringUpdate = function (object) {
 	if (object instanceof ChannelProxy) {
-		return tasks.filter(function (task) {
+		return scheduledSounds.filter(function (task) {
 			return task.channelID === object.channelID
 		})
 	}
 
-	return tasks
+	return scheduledSounds
 }
 
 MIDI.onPropertyChange(function (selector, property, newValue) {
 	debug('Property change detected! Updating tasks...')
-	tasks.selectTasksRequiringUpdate(selector).forEach(function (task) {
+	scheduledSounds.selectScheduledSoundsRequiringUpdate(selector).forEach(function (task) {
 		task.updateProperties()
 	})
 })
 
-const WebAudioSM = {
+const WebAudio = {
 	connect() {
 		debug('Connecting the Web Audio sound module.')
 
@@ -46,7 +46,7 @@ const WebAudioSM = {
 		const originalLoadProgram = MIDI.loadProgram
 		MIDI.loadProgram = function () {
 			debug('HOOK! WebAudioSM will post-process the program when it loads.')
-			return originalLoadProgram.apply(MIDI, arguments).then(WebAudioSM.processProgram)
+			return originalLoadProgram.apply(MIDI, arguments).then(WebAudio.processProgram)
 		}
 
 		const connectOp = new Promise(function (resolve, reject) {
@@ -60,7 +60,7 @@ const WebAudioSM = {
 			MIDI.asyncOperations.filter(function (operation) {
 				return operation.isLoadProgram
 			}).forEach(function (loadOp) {
-				loadOp.then(WebAudioSM.processProgram)
+				loadOp.then(WebAudio.processProgram)
 			})
 
 			resolve()
@@ -131,27 +131,6 @@ const WebAudioSM = {
 	}
 }
 
-/** noteOn/Off **/
-function noteOff(channelId, noteId, delay) {
-	delay = delay || 0;
-
-	var channels = _scheduled[channelId];
-	if (channels) {
-		var sources = channels[noteId];
-		if (sources) {
-			var source = sources.active;
-			if (source) {
-				fadeOut(sources, source, delay);
-			}
-		}
-	}
-	return {
-		cancel: function () {
-			source && source.disconnect(0);
-		}
-	};
-}
-
 function createAudioContext() {
 	const ctx = new (window.AudioContext || window.webkitAudioContext)()
 	try {
@@ -203,26 +182,31 @@ function addCommands() {
 		}
 
 		const audioBuffer = bufferDB.get(bufferID)
-		const task = new SoundTask({
+		const task = new ScheduledSound({
+			channelID,
+			noteID,
+
 			inContext: ctx,
 			audioBuffer,
-			channelID,
 			velocity,
 			delay
 		})
 
-		tasks.push(task)
+		scheduledSounds.push(task)
 		return task
 	}
 
 	MIDI.noteOff = function (channelID, noteID, delay = 0) {
 		noteID = GeneralMIDI.getNoteNumber(noteID)
 
-
+		scheduledSounds.filter(function(sound) {
+			return sound.channelID === channelID && sound.noteID === noteID && !sound.isEnding
+		}).forEach(function(sound) {
+			sound.scheduleFadeOut(ctx.currentTime + delay)
+		})
 	};
 
 
-	/** cancelNotes **/
 	MIDI.cancelNotes = function (channelId) {
 		if (isFinite(channelId)) {
 			stopChannel(channelId);
@@ -253,7 +237,7 @@ function addCommands() {
 	};
 }
 
-module.exports = WebAudioSM
+module.exports = WebAudio
 module.exports.bufferDB = bufferDB
-module.exports.tasks = tasks
+module.exports.tasks = scheduledSounds
 module.exports.ctx = ctx

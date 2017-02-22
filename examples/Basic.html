@@ -21,7 +21,7 @@
 
 			window.onload = function () {
 				MIDI.startDebugging()
-				MIDI.WebAudioSM.connect()
+				MIDI.WebAudio.connect()
 				MIDI.autoselectFormat()
 				MIDI.setChannels(16)
 
@@ -33,17 +33,17 @@
 					intoSlot: 0,
 					filename: './soundfont/acoustic_grand_piano-%FORMAT.json'
 				}).then(function () {
-					const note = 50
+					const note = 74
 					const velocity = 127
 
 					MIDI.noteOn(0, note, velocity)
-					MIDI.noteOn(0, note + 2, velocity, 0.1)
-					MIDI.noteOn(0, note + 3, velocity, 0.2)
-					MIDI.noteOn(0, note + 4, velocity, 0.3)
-					MIDI.noteOff(0, note, 0.75)
-					MIDI.noteOff(0, note + 2, 0.75)
-					MIDI.noteOff(0, note + 3, 0.75)
-					MIDI.noteOff(0, note + 4, 0.75)
+					MIDI.noteOff(0, note, 0.2)
+					MIDI.noteOn(0, note + 1, velocity, 0.2)
+					MIDI.noteOff(0, note + 1, 0.4)
+					MIDI.noteOn(0, note + 2, velocity, 0.4)
+					MIDI.noteOff(0, note + 2, 0.6)
+					MIDI.noteOn(0, note + 3, velocity, 0.6)
+					MIDI.noteOff(0, note + 3, 0.8)
 				})
 			}
 

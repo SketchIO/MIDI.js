@@ -26,13 +26,14 @@
 	<script src="../inc/EventEmitter.js"></script>
 
 	<!-- midi -->
-	<script src="../js/loader.js"></script>
-	<script src="../js/adaptors.js"></script>
-	<script src="../js/adaptors-Audio.js"></script>
-	<script src="../js/adaptors-AudioAPI.js"></script>
-	<script src="../js/adaptors-MIDI.js"></script>
-	<script src="../js/channels.js"></script>
-	<script src="../js/gm.js"></script>
+	<!--<script src="../js/loader.js"></script>-->
+	<!--<script src="../js/adaptors.js"></script>-->
+	<!--<script src="../js/adaptors-Audio.js"></script>-->
+	<!--<script src="../js/adaptors-AudioAPI.js"></script>-->
+	<!--<script src="../js/adaptors-MIDI.js"></script>-->
+	<!--<script src="../js/channels.js"></script>-->
+	<!--<script src="../js/gm.js"></script>-->
+	<script src="../build/MIDI.js"></script>
 	<script src="../js/player.js"></script>
 	<script src="../js/synesthesia.js"></script>
 
@@ -189,12 +190,19 @@ function setWahWah(channel) {
 (function () { 'use strict';
 
 function onPageReady() {
-	MIDI.setup({
-		debug: true,
-		onprogress: function (state, progress) {
-			console.log(state + ': ', progress * 100 >> 0);
-		}
-	}).then(function (res) {
+	MIDI.startDebugging()
+	MIDI.WebAudio.connect()
+	MIDI.autoselectFormat()
+	MIDI.setChannels(16)
+
+	MIDI.onProgress = function (state, progress) {
+		console.log('Loading:', progress.toFixed(2), '%')
+	}
+
+	MIDI.loadProgram({
+		intoSlot: 0,
+		filename: './soundfont/acoustic_grand_piano-%FORMAT.json'
+	}).then(function () {
 		MIDI.noteOn(0, 90, 1);
 // 		load('./midi/death-waltz.mid');
 		load('./midi/chopin_etudes_No. 12 - Revolutionary.mid');
