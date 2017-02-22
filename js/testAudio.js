@@ -19,6 +19,8 @@
 const Debug = require('debug')
 const debug = Debug('MIDI.js:testAudio')
 
+const dataURI = require('./dataURI')
+
 const tests = {}
 const supports = {}
 
@@ -89,9 +91,10 @@ function canPlayThrough(test) {
 		audio.setAttribute('preload', 'auto');
 		audio.addEventListener('error', function onError(err) {
 			if (createObjectURL && !audio.testedBlobURL) {
-				audio.testedBlobURL = true; // workaround for
-			                              // https://code.google.com/p/chromium/issues/detail?id=544988&q=Cr%3DInternals-Media&colspec=ID%20Pri%20M%20Stars%20ReleaseBlock%20Cr%20Status%20Owner%20Summary%20OS%20Modified
-				audio.src = createObjectURL(base64ToBlob(src));
+				// workaround for
+				// https://code.google.com/p/chromium/issues/detail?id=544988&q=Cr%3DInternals-Media&colspec=ID%20Pri%20M%20Stars%20ReleaseBlock%20Cr%20Status%20Owner%20Summary%20OS%20Modified
+				audio.testedBlobURL = true;
+				audio.src = createObjectURL(dataURI.toBlob(src));
 			} else {
 				audio.removeEventListener('error', onError);
 				hasSupport(false);
@@ -140,29 +143,6 @@ function detectDecodeAudio(src) {
 		audioContext.decodeAudioData(base64ToBuffer(src)).then(resolve).catch(reject);
 		setTimeout(reject, 250); // chrome workaround
 	                           // https://code.google.com/p/chromium/issues/detail?id=424174
-	});
-}
-
-/* base64 utils */
-function base64Mime(uri) {
-	uri = uri.split(',');
-	return uri[0].split(':')[1].split(';')[0];
-}
-
-function base64ToBuffer(uri) {
-	uri = uri.split(',');
-	var binary = atob(uri[1]);
-	var buffer = new ArrayBuffer(binary.length);
-	var uint = new Uint8Array(buffer);
-	for (var n = 0; n < binary.length; n++) {
-		uint[n] = binary.charCodeAt(n);
-	}
-	return buffer;
-}
-
-function base64ToBlob(uri) {
-	return new Blob([base64ToBuffer(uri)], {
-		type: base64Mime(uri)
 	});
 }
 

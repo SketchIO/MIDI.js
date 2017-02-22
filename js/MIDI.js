@@ -1,23 +1,17 @@
-/*
- ----------------------------------------------------------
- MIDI/loader : 2015-12-22 : https://mudcu.be
- ----------------------------------------------------------
- https://github.com/mudcube/MIDI.js
- ----------------------------------------------------------
- */
-
 const Debug = require('debug')
 const debug = Debug('MIDI.js:root')
 const testAudio = require('./testAudio')
+const actionStack = require('./actionStack')
+const basicProperties = require('./basicProperties')
 
 if (console && console.log) {
 	console.log('%c♥ MIDI.js 0.4.2 ♥', 'color: red;')
 }
 
-function NOOP() {
-}
-const AUTOSELECT = 'autoselect'
 const AUDIO_FORMATS = ['mp3', 'ogg']
+const AUTOSELECT = 'autoselect'
+const NOOP = function () {
+}
 
 const MIDI = {
 	AUDIO_FORMATS,
@@ -25,17 +19,20 @@ const MIDI = {
 
 	asyncOperations: [],
 	format: AUTOSELECT,
+	soundModule: null,
+	onProgress: NOOP,
+	channels: [],
+	onPropertyChange: actionStack(),
 
-	doFetch(URL, onProgress) {
+	doFetch({URL, onProgress, ...extraArguments}) {
 		const fetchOp = new Promise(function (resolve, reject) {
-			galactic.request({
-				url: URL,
+			galactic.request(Object.assign({
 				format: 'text',
-				onerror: reject,
-				onprogress: onProgress,
-				onsuccess: resolve
-			})
+				url: URL,
+				onprogress: onProgress
+			}, extraArguments), resolve, reject)
 		})
+		fetchOp.isFetch = true
 		this.asyncOperations.push(fetchOp)
 		return fetchOp
 	},
@@ -48,6 +45,36 @@ const MIDI = {
 				window.location = window.location
 			}
 		}
+	},
+
+	dumpProps() {
+		const doDump = (console.table ? console.table : console.log).bind(console)
+		const rows = [{
+			objectID: 'MIDI',
+			object: MIDI
+		}, ...MIDI.channels.map(function (channel) {
+			return {
+				objectID: `Channel ${channel.channelID}`,
+				object: channel
+			}
+		})].reduce(function (rows, {objectID, object}) {
+			rows[objectID] = basicProperties.reduce(function (accum, {property}) {
+				accum[property] = accum[property] || {}
+				accum[property] = object[property]
+				return accum
+			}, {})
+			return rows
+		}, {})
+
+		doDump(rows)
+	},
+
+	setChannels(channelCount) {
+		const ChannelProxy = require('./ChannelProxy')
+		for (let channelID = this.channels.length; channelID < channelCount; channelID += 1) {
+			this.channels.push(new ChannelProxy(channelID))
+		}
+		this.channels.splice(channelCount)
 	},
 
 	autoselectFormat() {
@@ -69,22 +96,35 @@ const MIDI = {
 		return autoselectOp
 	},
 
-	loadProgram({intoSlot = 0, filename, onProgress = NOOP}) {
+	loadProgram({intoSlot = 0, filename, onProgress = MIDI.onProgress}) {
 		const isReady = this.isReady({skip: 'isLoadProgram'})
 		const loadOp = new Promise(function (resolve, reject) {
 			isReady.then(function () {
 				const programURL = filename.replace(/%FORMAT/g, MIDI.format)
 				debug('Fetching "%s"', programURL)
-				MIDI.doFetch(programURL, onProgress).then(function (event) {
-					const rawContents = event.target.responseText
+				MIDI.doFetch({
+					URL: programURL,
+					onProgress,
+					format: 'json'
+				}).then(function (event) {
+					const rawContents = event.target.response
 					try {
+
+						// TODO branch here and process
+						// 1) SoundPackV1
+						// 2) Soundfont
+						// 3) Other program file formats?
+
 						const programContents = JSON.parse(rawContents)
 						debug('The program was parsed.')
+						resolve({
+							programID: intoSlot,
+							program: programContents
+						})
 					} catch (error) {
 						debug('Something happened while parsing your program: %o', error)
 						reject()
 					}
-					resolve()
 				}).catch(function (error) {
 					debug('Something happened while fetching: %o', error)
 					reject()
@@ -92,15 +132,21 @@ const MIDI = {
 			})
 		})
 		loadOp.isLoadProgram = true
+		loadOp.programID = intoSlot
 		this.asyncOperations.push(loadOp)
 		return loadOp
 	},
 
 	isReady(opts) {
+		opts = opts || {}
 		let operations = this.asyncOperations
-		// TODO Does skip make sense as an array or function?
-		if (opts && opts.skip)
+
+		if (opts.skip) {
+			debug('Skipping async operations tagged "%s"', opts.skip)
+			// TODO Does skip make sense as an array or function?
 			operations = this.asyncOperations.filter(operation => !operation[opts.skip])
+		}
+
 		debug('Waiting for %s async operations...', operations.length)
 		return Promise.all(operations)
 	}
@@ -114,6 +160,50 @@ const MIDI = {
 	debug('The "%s" command is not supported by the currently installed sound module', command)
 })
 
-module.exports = MIDI
+function addProperty({object, property, comparator, defaultValue}) {
+	debug('Adding property to object: %O', {
+		object,
+		property,
+		comparator,
+		defaultValue
+	})
+	let currentValue = defaultValue
+	Object.defineProperty(object, property, {
+		get() {
+			return currentValue
+		},
 
+		set(newValue) {
+			if (comparator(newValue)) {
+				currentValue = newValue
+				MIDI.onPropertyChange.trigger(this, property, newValue)
+			}
+		}
+	})
+}
+
+basicProperties.forEach(function (propertyInfo) {
+	addProperty({object: MIDI, ...propertyInfo})
+})
+
+// TODO This is also implemented in basicProperties. Combine them!
+function isNumber(n) {
+	return !isNaN(parseFloat(n)) && isFinite(n);
+}
+
+const ChannelProxy = require('./ChannelProxy')
+ChannelProxy.onConstruct(function (channelProxy) {
+	[
+		...basicProperties,
+		{
+			property: 'programID',
+			comparator: isNumber,
+			defaultValue: 0
+		}
+	].forEach(function (propertyInfo) {
+		addProperty({object: channelProxy, ...propertyInfo})
+	})
+})
+
+module.exports = MIDI
 module.exports.WebAudioSM = require('./WebAudioSM')

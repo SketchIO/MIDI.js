@@ -1,212 +1,134 @@
-/*
- ----------------------------------------------------------------------
- adaptors-AudioAPI
- ----------------------------------------------------------------------
- http://webaudio.github.io/web-audio-api/
- ----------------------------------------------------------------------
- */
-
 const Debug = require('debug')
 const debug = Debug('MIDI.js:WebAudioSM')
 
 const MIDI = require('./MIDI')
+const GeneralMIDI = require('./GeneralMIDI')
+const dataURI = require('./dataURI')
+const SoundTask = require('./SoundTask')
+const ChannelProxy = require('./ChannelProxy')
 
-var _ctx = createAudioContext();
-var _buffers = {}; // downloaded & decoded audio buffers
+const ctx = createAudioContext()
 
-var _apply = {
-	volume(source) {
-		var node = source.gainNode.gain;
-		var channel = source._channel;
-
-		/* set value */
-		if (MIDI.mute || channel.mute) {
-			node.value = 0.0;
-		} else {
-			var volume = MIDI.volume * channel.volume * source._volume;
-			node.value = Math.min(2.0, Math.max(0.0, volume));
-		}
-
-		/* reschedule fadeout */
-		if (node._fadeout) {
-			node.cancelScheduledValues(_ctx.currentTime);
-			node.linearRampToValueAtTime(node.value, node._startAt);
-			node.linearRampToValueAtTime(0.0, node._startAt + 0.3);
-		}
-	},
-
-	detune(source) {
-		if (_ctx.hasDetune) {
-			var channel = source._channel;
-			var detune = MIDI.detune + channel.detune;
-			if (detune) {
-				source.detune.value = detune; // -1200 to 1200 - value in cents [100
-			                                // cents per semitone]
-			}
-		}
-	},
-	fx(source) {
-		var channel = source._channel;
-		var chain = source.gainNode;
-
-		source.disconnect(0);
-		source.connect(chain);
-
-		apply(MIDI.fxNodes); // apply master effects
-		apply(channel.fxNodes); // apply channel effects //- trigger refresh when
-	                          // this changes
-
-		function apply(nodes) {
-			if (nodes) {
-				for (var type in nodes) {
-					var node = nodes[type];
-					chain.connect(node.input);
-					chain = node;
-				}
-			}
-		}
-	}
+const bufferDB = new Map()
+bufferDB.id = function (programID, noteID) {
+	return `${programID}x${noteID}`
 }
 
-var _scheduled = {}; // audio sources that are scheduled to play
+const tasks = []
+tasks.selectTasksRequiringUpdate = function (object) {
+	if (object instanceof ChannelProxy) {
+		return tasks.filter(function (task) {
+			return task.channelID === object.channelID
+		})
+	}
 
-module.exports = {
+	return tasks
+}
+
+MIDI.onPropertyChange(function (selector, property, newValue) {
+	debug('Property change detected! Updating tasks...')
+	tasks.selectTasksRequiringUpdate(selector).forEach(function (task) {
+		task.updateProperties()
+	})
+})
+
+const WebAudioSM = {
 	connect() {
 		debug('Connecting the Web Audio sound module.')
 
 		// WARNING - this adds properties directly to MIDI. It's kind of dirty.
-		addCustomProperties()
+		// TODO MIDI.js should proxy all calls to the sound modules
+		//addCustomProperties()
 		addCommands()
+		MIDI.soundModule = this
+
+		// Hook into program loading for post-processing
+		const originalLoadProgram = MIDI.loadProgram
+		MIDI.loadProgram = function () {
+			debug('HOOK! WebAudioSM will post-process the program when it loads.')
+			return originalLoadProgram.apply(MIDI, arguments).then(WebAudioSM.processProgram)
+		}
 
 		const connectOp = new Promise(function (resolve, reject) {
 			if (window.Tuna) {
 				debug('Adding TunaJS support...')
-				if (!(_ctx.tunajs instanceof Tuna)) {
-					_ctx.tunajs = new Tuna(_ctx);
+				if (!(ctx.tunajs instanceof Tuna)) {
+					ctx.tunajs = new Tuna(ctx);
 				}
 			}
 
-			resolve()
+			MIDI.asyncOperations.filter(function (operation) {
+				return operation.isLoadProgram
+			}).forEach(function (loadOp) {
+				loadOp.then(WebAudioSM.processProgram)
+			})
 
-			//var soundfonts = MIDI.Soundfont;
-			//var requests = Object.keys(soundfonts);
-			//for (var programId in soundfonts) {
-			//	var program = MIDI.getProgram(programId);
-			//	if (program) {
-			//		var request = _requests[programId] || (_requests[programId] = {});
-			//		if (request.loaded) {
-			//			continue;
-			//		} else if (request.decoding) {
-			//			request.queue.push(resolve);
-			//		} else {
-			//			request.decoding = true;
-			//			request.queue.push(resolve);
-			//			request.pending = 0;
-			//
-			//			var soundfont = soundfonts[programId];
-			//			for (var noteName in soundfont) {
-			//				loadAudio(programId, program.id, noteName);
-			//			}
-			//		}
-			//	}
-			//}
-			//
-			//setTimeout(waitForEnd, 0);
-			//
-			///* helpers */
-			//function waitForEnd() {
-			//	for (var i = 0; i < requests.length; i++) {
-			//		var program = requests[i];
-			//		var request = _requests[program];
-			//		if (request.pending) {
-			//			return;
-			//		}
-			//	}
-			//	for (var i = 0; i < requests.length; i++) {
-			//		var program = requests[i];
-			//		var request = _requests[program];
-			//		var cb;
-			//		while (cb = request.queue.pop()) {
-			//			cb();
-			//		}
-			//	}
-			//}
-			//
-			//function loadAudio(program, programId, noteName) {
-			//	var request = _requests[program];
-			//	var soundfont = soundfonts[program];
-			//	var path = soundfont[noteName];
-			//	if (path) {
-			//		request.pending++;
-			//		loadBuffer(path).then(function (buffer) {
-			//			buffer.id = noteName;
-			//
-			//			var noteId = MIDI.getNoteNumber(noteName);
-			//			var bufferId = programId + 'x' + noteId;
-			//			_buffers[bufferId] = buffer;
-			//
-			//			if (!--request.pending) {
-			//				request.decoding = false;
-			//				request.loading = false;
-			//				request.loaded = true;
-			//
-			//				MIDI.DEBUG && console.log('loaded: ', program);
-			//
-			//				waitForEnd();
-			//			}
-			//		}).catch(function (err) {
-			//			MIDI.DEBUG && console.error('audio could not load', arguments);
-			//		});
-			//	}
-			//}
+			resolve()
 		})
 
+		connectOp.isConnect = true
 		MIDI.asyncOperations.push(connectOp)
 		return connectOp
-	}
-}
+	},
 
-function noteOn(channelId, noteId, velocity, delay) {
-	delay = delay || 0;
-
-	var source;
-	var sourceId;
-
-	var volume = MIDI.volume;
-	if (volume) {
-		var channel = MIDI.channels[channelId];
-		var programId = channel.program;
-		var bufferId = programId + 'x' + noteId;
-		var buffer = _buffers[bufferId];
-		if (buffer) {
-			source = _ctx.createBufferSource();
-			source.buffer = buffer;
-
-			source.gainNode = _ctx.createGain();
-			source.gainNode.connect(_ctx.destination);
-
-			source._channel = channel;
-			source._volume = velocity;
-
-			_apply.volume(source);
-			_apply.detune(source);
-			_apply.fx(source);
-
-			source.start(delay + _ctx.currentTime);
-
-			_scheduled[channelId] = _scheduled[channelId] || {};
-			_scheduled[channelId][noteId] = _scheduled[channelId][noteId] || [];
-			_scheduled[channelId][noteId].push(source);
-			_scheduled[channelId][noteId].active = source;
-		} else {
-			MIDI.DEBUG && console.error(['no buffer', arguments]);
+	processProgram({programID, program, onProgress = MIDI.onProgress}) {
+		if (typeof programID === 'undefined') {
+			debug('I cannot process a program without a programID: %o', {
+				programID,
+				program
+			})
+			const rejection = Promise.reject
+			MIDI.asyncOperations.push(rejection)
+			return rejection
 		}
+
+		const bufferJobs = Object.keys(program).map(function (note) {
+			const noteID = GeneralMIDI.getNoteNumber(note)
+			if (!noteID) {
+				debug('I cannot process a note that does not have a valid note number: %o', {
+					noteID,
+					note
+				})
+				// Rejecting would cause the whole thing to come crashing down.
+				// Instead, might as well just skip this note.
+				return Promise.resolve()
+			}
+
+			// TODO Stop assuming that the contents of a note are a sample; they may
+			// be an object following the SoundPackV1 spec.
+			const noteSample = program[note]
+			debug('Processing note: %o', {noteID, note, noteSample})
+
+			function storeBuffer(audioBuffer) {
+				const bufferID = bufferDB.id(programID, noteID)
+				debug('Storing audio buffer: %o', {bufferID, audioBuffer})
+				bufferDB.set(bufferID, audioBuffer)
+			}
+
+			// Currently, if the sample is a data URI then we shortcut and
+			// just decode the sample. If it's not, I assume that sample is a URL.
+			// TODO Test the sample for URL qualities to allow for other formats.
+			if (dataURI.test(noteSample)) {
+				return ctx.decodeAudioData(dataURI.toBuffer(noteSample)).then(storeBuffer)
+			} else {
+				return MIDI.doFetch({
+					URL: noteSample,
+					onProgress,
+					responseType: 'arraybuffer'
+				}).then(function (event) {
+					console.log(arguments)
+					debugger
+					const response = new ArrayBuffer()
+					return ctx.decodeAudioData(response)
+				}).then(storeBuffer)
+			}
+		})
+
+		const processOp = Promise.all(bufferJobs)
+		processOp.isProcessProgram = true
+		MIDI.asyncOperations.push(processOp)
+		return processOp
 	}
-	return {
-		cancel: function () {
-			source && source.disconnect(0);
-		}
-	};
 }
 
 /** noteOn/Off **/
@@ -230,205 +152,73 @@ function noteOff(channelId, noteId, delay) {
 	};
 }
 
-function noteGroupOn(channel, chord, velocity, delay) {
-	var res = {};
-	for (var n = 0, note, len = chord.length; n < len; n++) {
-		res[note = chord[n]] = MIDI.noteOn(channel, note, velocity, delay);
-	}
-	return res;
-}
-
-function noteGroupOff(channel, chord, delay) {
-	var res = {};
-	for (var n = 0, note, len = chord.length; n < len; n++) {
-		res[note = chord[n]] = MIDI.noteOff(channel, note, delay);
-	}
-	return res;
-}
-
-function fadeOut(sources, source, delay) {
-	var startAt = (delay || 0) + _ctx.currentTime;
-
-	// @Miranet: 'the values of 0.2 and 0.3 could of course be used as
-	// a 'release' parameter for ADSR like time settings.'
-	// add { 'metadata': { release: 0.3 } } to soundfont files
-	var gain = source.gainNode.gain;
-	gain._fadeout = true;
-	gain._startAt = startAt;
-	gain.linearRampToValueAtTime(gain.value, startAt);
-	gain.linearRampToValueAtTime(0.0, startAt + 0.3);
-
-	source.stop(startAt + 0.5);
-
-	setTimeout(function () {
-		sources.shift();
-	}, delay * 1000);
-}
-
-function loadBuffer(path) { // streaming | base64 | arraybuffer
-	return new Promise(function (resolve, reject) {
-		if (path.indexOf('data:audio') === 0) { // Base64 string
-			decode(base64ToBuffer(path));
-		} else { // XMLHTTP buffer
-			var xhr = new XMLHttpRequest();
-			xhr.open('GET', path, true);
-			xhr.responseType = 'arraybuffer';
-			xhr.onload = function () {
-				decode(xhr.response);
-			};
-			xhr.send();
-		}
-
-		function decode(buffer) {
-			_ctx.decodeAudioData(buffer, resolve, reject);
-		}
-	});
-}
-
-function base64ToBuffer(uri) {
-	uri = uri.split(',');
-	var binary = atob(uri[1]);
-	var mime = uri[0].split(':')[1].split(';')[0];
-	var buffer = new ArrayBuffer(binary.length);
-	var uint = new Uint8Array(buffer);
-	for (var n = 0; n < binary.length; n++) {
-		uint[n] = binary.charCodeAt(n);
-	}
-	return buffer;
-}
-
 function createAudioContext() {
-	_ctx = new (window.AudioContext || window.webkitAudioContext)();
-	_ctx.hasDetune = detectDetune();
-	return _ctx;
-}
-
-function detectDetune() {
-	var buffer = _ctx.createBuffer(1, 1, 44100);
-	var source = _ctx.createBufferSource();
+	const ctx = new (window.AudioContext || window.webkitAudioContext)()
 	try {
-		source.detune.value = 1200;
-		return true;
+		const buffer = ctx.createBuffer(1, 1, 44100);
+		const source = ctx.createBufferSource();
+		source.detune.value = 1200
+		ctx.hasDetune = true
 	} catch (e) {
-		return false;
+		debug('Detune is not supported on this platform')
 	}
+
+	return ctx
 }
 
-function loopChannel(channelId, cb) {
-	var channel = _scheduled[channelId];
-	for (var noteId in channel) {
-		var sources = channel[noteId];
-		var source;
-		for (var i = 0; i < sources.length; i++) {
-			cb(sources, sources[i]);
-		}
-	}
-}
 
-function addCustomProperties() {
-	Object.defineProperties(MIDI, {
-		'context': {
-			configurable: true,
-			get: function () {
-				return _ctx;
-			},
-			set: function (ctx) {
-				_ctx = ctx;
-			}
-		},
-
-		/* effects */
-		'detune': set('number', 0, handler('detune')),
-		'fx': set('object', null, handler('fx')),
-		'mute': set('boolean', false, handler('volume')),
-		'volume': set('number', 1.0, handler('volume'))
-	});
-
-	function set(_format, _value, _handler) {
-		return {
-			configurable: true,
-			get: function () {
-				return _value;
-			},
-			set: function (value) {
-				if (typeof value === _format) {
-					_value = value;
-					_handler && _handler();
-				}
-			}
-		}
-	}
-
-	function handler(type) {
-		return function () {
-			MIDI.setProperty(type);
-		};
-	}
-
-	MIDI.setProperty = function (type, channelId) {
-		if (_apply[type]) {
-			if (isFinite(channelId)) {
-				type === 'fx' && prepareFX(MIDI.channels[channelId]);
-				setFX(channelId);
-			} else {
-				type === 'fx' && prepareFX(MIDI);
-				for (var channelId in _scheduled) {
-					setFX(channelId);
-				}
-
-			}
-		}
-
-		function setFX() {
-			loopChannel(channelId, function (sources, source) {
-				_apply[type](source);
-			});
-		}
-
-		function prepareFX(channel) {
-			var fxNodes = channel.fxNodes || (channel.fxNodes = {});
-			for (var key in fxNodes) {
-				fxNodes[key].disconnect(_ctx.destination);
-				delete fxNodes[key];
-			}
-			if (_ctx.tunajs) {
-				var fx = channel.fx;
-				for (var i = 0; i < fx.length; i++) {
-					var data = fx[i];
-					var type = data.type;
-					var effect = new _ctx.tunajs[type](data);
-					effect.connect(_ctx.destination);
-					fxNodes[type] = effect;
-				}
-			} else {
-				MIDI.DEBUG && console.error('fx not installed.', arguments);
-			}
-		}
-	};
-}
+//		function prepareFX(channel) {
+//			var fxNodes = channel.fxNodes || (channel.fxNodes = {});
+//			for (var key in fxNodes) {
+//				fxNodes[key].disconnect(ctx.destination);
+//				delete fxNodes[key];
+//			}
+//			if (ctx.tunajs) {
+//				var fx = channel.fx;
+//				for (var i = 0; i < fx.length; i++) {
+//					var data = fx[i];
+//					var type = data.type;
+//					var effect = new ctx.tunajs[type](data);
+//					effect.connect(ctx.destination);
+//					fxNodes[type] = effect;
+//				}
+//			} else {
+//				MIDI.DEBUG && console.error('fx not installed.', arguments);
+//			}
+//		}
+//	};
+//}
 
 function addCommands() {
-	/** noteOn/Off **/
-	MIDI.noteOn = function (channelId, noteId, velocity, delay) {
-		switch (typeof noteId) {
-			case 'number':
-				return noteOn.apply(null, arguments);
-			case 'string':
-				break;
-			case 'object':
-				return noteGroupOn.apply(null, arguments);
-		}
-	};
+	MIDI.noteOn = function (channelID, noteID, velocity = 127, delay = 0) {
+		noteID = GeneralMIDI.getNoteNumber(noteID)
 
-	MIDI.noteOff = function (channelId, noteId, delay) {
-		switch (typeof noteId) {
-			case 'number':
-				return noteOff.apply(null, arguments);
-			case 'string':
-				break;
-			case 'object':
-				return noteGroupOff.apply(null, arguments);
+		const programID = MIDI.channels[channelID].programID
+		const bufferID = bufferDB.id(programID, noteID)
+
+		if (!bufferDB.has(bufferID)) {
+			debug('An attempt was made to play a note in a program without an associated buffer: %o', bufferID)
+			// TODO Should something be returned here? A fake sound task?
+			return
 		}
+
+		const audioBuffer = bufferDB.get(bufferID)
+		const task = new SoundTask({
+			inContext: ctx,
+			audioBuffer,
+			channelID,
+			velocity,
+			delay
+		})
+
+		tasks.push(task)
+		return task
+	}
+
+	MIDI.noteOff = function (channelID, noteID, delay = 0) {
+		noteID = GeneralMIDI.getNoteNumber(noteID)
+
+
 	};
 
 
@@ -452,13 +242,18 @@ function addCommands() {
 
 	/** unlock **/
 	MIDI.iOSUnlock = function () {
-		if (_ctx.unlocked !== true) {
-			_ctx.unlocked = true;
-			var buffer = _ctx.createBuffer(1, 1, 44100);
-			var source = _ctx.createBufferSource();
+		if (ctx.unlocked !== true) {
+			ctx.unlocked = true;
+			var buffer = ctx.createBuffer(1, 1, 44100);
+			var source = ctx.createBufferSource();
 			source.buffer = buffer;
-			source.connect(_ctx.destination);
+			source.connect(ctx.destination);
 			source.start(0);
 		}
 	};
 }
+
+module.exports = WebAudioSM
+module.exports.bufferDB = bufferDB
+module.exports.tasks = tasks
+module.exports.ctx = ctx
