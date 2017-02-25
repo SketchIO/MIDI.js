@@ -209,7 +209,7 @@ ChannelProxy.onConstruct(function (channelProxy) {
 MIDI.props2dump.push('programID')
 
 module.exports = MIDI
-module.exports.webAudio = require('./webAudio')
+module.exports.webaudio = require('./webaudio')
 module.exports.gm = require('./GeneralMIDI')
 
 if (console && console.log) {

@@ -1,5 +1,5 @@
 const Debug = require('debug')
-const debug = Debug('MIDI.js:webAudio')
+const debug = Debug('MIDI.js:webaudio')
 
 const MIDI = require('./MIDI')
 const GeneralMIDI = require('./GeneralMIDI')
@@ -32,7 +32,7 @@ MIDI.onPropertyChange(function (selector, property, newValue) {
 	})
 })
 
-const webAudio = {
+const webaudio = {
 	connect() {
 		debug('Connecting the Web Audio sound module.')
 
@@ -46,7 +46,7 @@ const webAudio = {
 		const originalLoadProgram = MIDI.loadProgram
 		MIDI.loadProgram = function () {
 			debug('HOOK! WebAudioSM will post-process the program when it loads.')
-			return originalLoadProgram.apply(MIDI, arguments).then(webAudio.processProgram)
+			return originalLoadProgram.apply(MIDI, arguments).then(webaudio.processProgram)
 		}
 
 		const connectOp = new Promise(function (resolve, reject) {
@@ -61,7 +61,7 @@ const webAudio = {
 			MIDI.asyncOperations.filter(function (operation) {
 				return operation.isLoadProgram
 			}).forEach(function (loadOp) {
-				loadOp.then(webAudio.processProgram)
+				loadOp.then(webaudio.processProgram)
 			})
 
 			resolve()
@@ -131,7 +131,7 @@ const webAudio = {
 			// just decode the sample. If it's not, I assume that sample is a URL.
 			switch(typeof noteContents) {
 				case 'object':
-					return noteHandler_string(noteContents.b64sample).then(storeBuffer)
+					return noteHandler_string(noteContents.data).then(storeBuffer)
 				case 'string':
 				default:
 					return noteHandler_string(noteContents).then(storeBuffer)
@@ -252,7 +252,7 @@ function addCommands() {
 	};
 }
 
-module.exports = webAudio
+module.exports = webaudio
 module.exports.bufferDB = bufferDB
 module.exports.tasks = scheduledSounds
 module.exports.ctx = ctx
