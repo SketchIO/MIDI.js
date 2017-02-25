@@ -33,11 +33,11 @@ function ScheduledSound({
 		startTime: this.startTime
 	})
 
-	this.gain = this.ctx.createGain()
+	this.volumeKnob = this.ctx.createGain()
 
 	this.source = this.ctx.createBufferSource()
 	this.source.buffer = audioBuffer
-	this.source.connect(this.gain)
+	this.source.connect(this.volumeKnob)
 	this.source.start(this.startTime)
 	this.source.onended = function() {
 		debug('Sound task is complete.')
@@ -60,12 +60,12 @@ ScheduledSound.prototype = {
 
 		if (MIDI.mute || channel.mute) {
 			debug('Muting sound task: %o', {soundTask: this})
-			this.gain.value = 0.0
+			this.volumeKnob.gain.value = 0.0
 		} else {
-			const volume = MIDI.volume * channel.volume * this.velocity
-			const scaledVolume = scaleRange(volume, 0, 127 * 127 * 127, 0, 2)
+			const volume = (MIDI.volume / 127) * (channel.volume / 127) * (this.velocity / 127)
+			const scaledVolume = scaleRange(volume, 0, 1, 0, 2)
 			debug('Adjusting sound task volume: %o', {volume: scaledVolume})
-			this.gain.value = scaledVolume
+			this.volumeKnob.gain.value = scaledVolume
 		}
 
 		if(this.isEnding) {
@@ -79,22 +79,25 @@ ScheduledSound.prototype = {
 			this.source.detune.value = detune
 		}
 
-		this.gain.connect(this.ctx.destination)
+		this.volumeKnob.connect(this.ctx.destination)
 	},
 
 	scheduleFadeOut(time) {
-		const RELEASE = 0.3
+		const RELEASE = 0.5
 		if(!time) {
 			time = this.ctx.currentTime + RELEASE
 		}
+
+		this.isEnding = true
+		this.endTime = time
 
 		// @Miranet: 'the values of 0.2 and 0.3 could of course be used as
 		// a 'release' parameter for ADSR like time settings.'
 		// add { 'metadata': { release: 0.3 } } to soundfont files
 		this.isEnding = true
-		this.gain.gain.cancelScheduledValues(this.ctx.currentTime)
-		this.gain.gain.linearRampToValueAtTime(this.gain.value, time)
-		this.gain.gain.linearRampToValueAtTime(0.0, time + RELEASE)
+		this.volumeKnob.gain.cancelScheduledValues(this.ctx.currentTime)
+		this.volumeKnob.gain.linearRampToValueAtTime(this.volumeKnob.gain.value, time)
+		this.volumeKnob.gain.linearRampToValueAtTime(0.0, time + RELEASE)
 		this.source.stop(time + 0.5)
 	},
 

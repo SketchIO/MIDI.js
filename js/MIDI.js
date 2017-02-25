@@ -19,6 +19,7 @@ const MIDI = {
 	soundModule: null,
 	onProgress: NOOP,
 	channels: [],
+	programs: [],
 	onPropertyChange: actionStack(),
 
 	doFetch({URL, onProgress, ...extraArguments}) {
@@ -27,7 +28,9 @@ const MIDI = {
 				format: 'text',
 				url: URL,
 				onprogress: onProgress
-			}, extraArguments), resolve, reject)
+			}, extraArguments), function(XHR, response) {
+				resolve(response)
+			}, reject)
 		})
 		fetchOp.isFetch = true
 		this.asyncOperations.push(fetchOp)
@@ -44,6 +47,11 @@ const MIDI = {
 		}
 	},
 
+	props2dump: [
+		...basicProperties.map(function({property}) {
+			return property
+		})
+	],
 	dumpProps() {
 		const doDump = (console.table ? console.table : console.log).bind(console)
 		const rows = [{
@@ -55,7 +63,7 @@ const MIDI = {
 				object: channel
 			}
 		})].reduce(function (rows, {objectID, object}) {
-			rows[objectID] = basicProperties.reduce(function (accum, {property}) {
+			rows[objectID] = MIDI.props2dump.reduce(function (accum, property) {
 				accum[property] = accum[property] || {}
 				accum[property] = object[property]
 				return accum
@@ -64,6 +72,11 @@ const MIDI = {
 		}, {})
 
 		doDump(rows)
+	},
+
+	dumpOperations() {
+		const doDump = (console.table ? console.table : console.log).bind(console)
+		doDump(this.asyncOperations)
 	},
 
 	setChannels(channelCount) {
@@ -103,27 +116,18 @@ const MIDI = {
 					URL: programURL,
 					onProgress,
 					format: 'json'
-				}).then(function (event) {
-					const rawContents = event.target.response
-					try {
+				}).then(function (programContents) {
+					MIDI.programs.push({
+						programID: intoSlot,
+						program: programContents
+					})
 
-						// TODO branch here and process
-						// 1) SoundPackV1
-						// 2) Soundfont
-						// 3) Other program file formats?
-
-						const programContents = JSON.parse(rawContents)
-						debug('The program was parsed.')
-						resolve({
-							programID: intoSlot,
-							program: programContents
-						})
-					} catch (error) {
-						debug('Something happened while parsing your program: %o', error)
-						reject()
-					}
+					resolve({
+						programID: intoSlot,
+						program: programContents
+					})
 				}).catch(function (error) {
-					debug('Something happened while fetching: %o', error)
+					debug('Something happened while fetching: %o', {error})
 					reject()
 				})
 			})
@@ -134,14 +138,14 @@ const MIDI = {
 		return loadOp
 	},
 
-	isReady(opts) {
-		opts = opts || {}
+	isReady(options = {}) {
+		// TODO Promise.all on all queued items before executing
 		let operations = this.asyncOperations
 
-		if (opts.skip) {
-			debug('Skipping async operations tagged "%s"', opts.skip)
+		if (options.skip) {
+			debug('Skipping async operations tagged "%s"', options.skip)
 			// TODO Does skip make sense as an array or function?
-			operations = this.asyncOperations.filter(operation => !operation[opts.skip])
+			operations = this.asyncOperations.filter(operation => !operation[options.skip])
 		}
 
 		debug('Waiting for %s async operations...', operations.length)
@@ -202,8 +206,11 @@ ChannelProxy.onConstruct(function (channelProxy) {
 	})
 })
 
+MIDI.props2dump.push('programID')
+
 module.exports = MIDI
-module.exports.WebAudio = require('./WebAudio')
+module.exports.webAudio = require('./webAudio')
+module.exports.gm = require('./GeneralMIDI')
 
 if (console && console.log) {
 	console.log(`%c♥ MIDI.js ${MIDI.VERSION} ♥`, 'color: red;')

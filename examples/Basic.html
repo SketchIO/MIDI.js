@@ -21,7 +21,7 @@
 
 			window.onload = function () {
 				MIDI.startDebugging()
-				MIDI.WebAudio.connect()
+				MIDI.webAudio.connect()
 				MIDI.autoselectFormat()
 				MIDI.setChannels(16)
 
@@ -29,21 +29,29 @@
 					console.log('Loading:', progress.toFixed(2), '%')
 				}
 
-				MIDI.loadProgram({
-					intoSlot: 0,
-					filename: './soundfont/acoustic_grand_piano-%FORMAT.json'
-				}).then(function () {
-					const note = 74
+				Promise.all([
+					MIDI.loadProgram({
+						intoSlot: 0,
+						filename: './soundfont/acoustic_grand_piano-%FORMAT.json'
+					}),
+					MIDI.loadProgram({
+						intoSlot: 10,
+						filename: './soundfont/synth_drum-%FORMAT.json'
+					})
+				]).then(function () {
+					const piano = 50
+					const drum = 21
 					const velocity = 127
 
-					MIDI.noteOn(0, note, velocity)
-					MIDI.noteOff(0, note, 0.2)
-					MIDI.noteOn(0, note + 1, velocity, 0.2)
-					MIDI.noteOff(0, note + 1, 0.4)
-					MIDI.noteOn(0, note + 2, velocity, 0.4)
-					MIDI.noteOff(0, note + 2, 0.6)
-					MIDI.noteOn(0, note + 3, velocity, 0.6)
-					MIDI.noteOff(0, note + 3, 0.8)
+					MIDI.channels[0].programID = 10
+					MIDI.channels[1].volume = 50
+					for (let i = 0; i < 8; i += 1) {
+						MIDI.noteOn(0, drum + (8 - i), velocity, 0.2 * i)
+						MIDI.noteOff(0, drum + (8 - i), 0.2 * 8)
+
+						MIDI.noteOn(1, piano + i, velocity, 0.2 * i)
+						MIDI.noteOff(1, piano + i, 0.2 * 8)
+					}
 				})
 			}
 

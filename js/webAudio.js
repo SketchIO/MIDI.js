@@ -1,5 +1,5 @@
 const Debug = require('debug')
-const debug = Debug('MIDI.js:WebAudioSM')
+const debug = Debug('MIDI.js:webAudio')
 
 const MIDI = require('./MIDI')
 const GeneralMIDI = require('./GeneralMIDI')
@@ -32,7 +32,7 @@ MIDI.onPropertyChange(function (selector, property, newValue) {
 	})
 })
 
-const WebAudio = {
+const webAudio = {
 	connect() {
 		debug('Connecting the Web Audio sound module.')
 
@@ -46,10 +46,11 @@ const WebAudio = {
 		const originalLoadProgram = MIDI.loadProgram
 		MIDI.loadProgram = function () {
 			debug('HOOK! WebAudioSM will post-process the program when it loads.')
-			return originalLoadProgram.apply(MIDI, arguments).then(WebAudio.processProgram)
+			return originalLoadProgram.apply(MIDI, arguments).then(webAudio.processProgram)
 		}
 
 		const connectOp = new Promise(function (resolve, reject) {
+			// Use globals instead and shim.
 			if (window.Tuna) {
 				debug('Adding TunaJS support...')
 				if (!(ctx.tunajs instanceof Tuna)) {
@@ -60,7 +61,7 @@ const WebAudio = {
 			MIDI.asyncOperations.filter(function (operation) {
 				return operation.isLoadProgram
 			}).forEach(function (loadOp) {
-				loadOp.then(WebAudio.processProgram)
+				loadOp.then(webAudio.processProgram)
 			})
 
 			resolve()
@@ -82,7 +83,30 @@ const WebAudio = {
 			return rejection
 		}
 
-		const bufferJobs = Object.keys(program).map(function (note) {
+		function noteHandler_string(noteContents) {
+			if (dataURI.test(noteContents)) {
+				return ctx.decodeAudioData(dataURI.toBuffer(noteContents))
+			} else {
+				return MIDI.doFetch({
+					URL: noteContents,
+					onProgress,
+					responseType: 'arraybuffer'
+				}).then(function (event) {
+					console.log(arguments)
+					debugger
+					const response = new ArrayBuffer()
+					return ctx.decodeAudioData(response)
+				})
+			}
+		}
+
+		function noteHandler_object(noteContents) {
+
+		}
+
+		const {__METADATA, ...notes} = program
+		console.log(notes)
+		const bufferJobs = Object.keys(notes).map(function (note) {
 			const noteID = GeneralMIDI.getNoteNumber(note)
 			if (!noteID) {
 				debug('I cannot process a note that does not have a valid note number: %o', {
@@ -94,10 +118,8 @@ const WebAudio = {
 				return Promise.resolve()
 			}
 
-			// TODO Stop assuming that the contents of a note are a sample; they may
-			// be an object following the SoundPackV1 spec.
-			const noteSample = program[note]
-			debug('Processing note: %o', {noteID, note, noteSample})
+			const noteContents = program[note]
+			debug('Processing note: %o', {noteID, note, noteContents})
 
 			function storeBuffer(audioBuffer) {
 				const bufferID = bufferDB.id(programID, noteID)
@@ -107,20 +129,12 @@ const WebAudio = {
 
 			// Currently, if the sample is a data URI then we shortcut and
 			// just decode the sample. If it's not, I assume that sample is a URL.
-			// TODO Test the sample for URL qualities to allow for other formats.
-			if (dataURI.test(noteSample)) {
-				return ctx.decodeAudioData(dataURI.toBuffer(noteSample)).then(storeBuffer)
-			} else {
-				return MIDI.doFetch({
-					URL: noteSample,
-					onProgress,
-					responseType: 'arraybuffer'
-				}).then(function (event) {
-					console.log(arguments)
-					debugger
-					const response = new ArrayBuffer()
-					return ctx.decodeAudioData(response)
-				}).then(storeBuffer)
+			switch(typeof noteContents) {
+				case 'object':
+					return noteHandler_string(noteContents.b64sample).then(storeBuffer)
+				case 'string':
+				default:
+					return noteHandler_string(noteContents).then(storeBuffer)
 			}
 		})
 
@@ -182,6 +196,7 @@ function addCommands() {
 		}
 
 		const audioBuffer = bufferDB.get(bufferID)
+		debug('Playing note: %o', {bufferID, audioBuffer, programID, channelID, noteID, velocity, delay})
 		const task = new ScheduledSound({
 			channelID,
 			noteID,
@@ -237,7 +252,7 @@ function addCommands() {
 	};
 }
 
-module.exports = WebAudio
+module.exports = webAudio
 module.exports.bufferDB = bufferDB
 module.exports.tasks = scheduledSounds
 module.exports.ctx = ctx
