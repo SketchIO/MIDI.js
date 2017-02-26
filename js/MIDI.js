@@ -1,8 +1,12 @@
+require('babel-polyfill')
+
 const Debug = require('debug')
 const debug = Debug('MIDI.js:root')
 const testAudio = require('./testAudio')
 const actionStack = require('./actionStack')
 const basicProperties = require('./basicProperties')
+const PendingJobs = require('./PendingJobs')
+const dump = require('./dump')
 
 const AUDIO_FORMATS = ['mp3', 'ogg']
 const AUTOSELECT = 'autoselect'
@@ -14,7 +18,7 @@ const MIDI = {
 	AUDIO_FORMATS,
 	AUTOSELECT,
 
-	asyncOperations: [],
+	jobs: new PendingJobs(),
 	format: AUTOSELECT,
 	soundModule: null,
 	onProgress: NOOP,
@@ -28,12 +32,11 @@ const MIDI = {
 				format: 'text',
 				url: URL,
 				onprogress: onProgress
-			}, extraArguments), function(XHR, response) {
+			}, extraArguments), function (XHR, response) {
 				resolve(response)
 			}, reject)
 		})
-		fetchOp.isFetch = true
-		this.asyncOperations.push(fetchOp)
+		MIDI.jobs.track(fetchOp, 'isFetch')
 		return fetchOp
 	},
 
@@ -48,12 +51,11 @@ const MIDI = {
 	},
 
 	props2dump: [
-		...basicProperties.map(function({property}) {
+		...basicProperties.map(function ({property}) {
 			return property
 		})
 	],
 	dumpProps() {
-		const doDump = (console.table ? console.table : console.log).bind(console)
 		const rows = [{
 			objectID: 'MIDI',
 			object: MIDI
@@ -70,13 +72,7 @@ const MIDI = {
 			}, {})
 			return rows
 		}, {})
-
-		doDump(rows)
-	},
-
-	dumpOperations() {
-		const doDump = (console.table ? console.table : console.log).bind(console)
-		doDump(this.asyncOperations)
+		dump(rows)
 	},
 
 	setChannels(channelCount) {
@@ -102,64 +98,65 @@ const MIDI = {
 			debug('Using the "%s" format.', format)
 			MIDI.format = format
 		})
-		this.asyncOperations.push(autoselectOp)
+		MIDI.jobs.track(autoselectOp)
 		return autoselectOp
 	},
 
-	loadProgram({intoSlot = 0, filename, onProgress = MIDI.onProgress}) {
-		const isReady = this.isReady({skip: 'isLoadProgram'})
+	/**
+	 * Load (and process) a program
+	 * @param {number} programID
+	 * @param {string} filename
+	 * @param {function} onProgress
+	 * @returns {Promise}
+	 */
+	loadProgram({programID = 0, filename, onProgress = MIDI.onProgress}) {
+		const isReady = MIDI.jobs.waitForActiveJobs({except: 'isLoadProgram'})
 		const loadOp = new Promise(function (resolve, reject) {
-			isReady.then(function () {
+			isReady.then(async function () {
 				const programURL = filename.replace(/%FORMAT/g, MIDI.format)
 				debug('Fetching "%s"', programURL)
-				MIDI.doFetch({
-					URL: programURL,
-					onProgress,
-					format: 'json'
-				}).then(function (programContents) {
-					MIDI.programs.push({
-						programID: intoSlot,
-						program: programContents
+				try {
+					const program = await MIDI.doFetch({
+						URL: programURL,
+						onProgress,
+						format: 'json'
 					})
 
-					resolve({
-						programID: intoSlot,
-						program: programContents
-					})
-				}).catch(function (error) {
-					debug('Something happened while fetching: %o', {error})
-					reject()
-				})
+					MIDI.programs.push({programID, program})
+					await MIDI.onLoadProgram.trigger({programID, program})
+					resolve({programID, program})
+				} catch (error) {
+					reject(error)
+				}
+
 			})
 		})
-		loadOp.isLoadProgram = true
-		loadOp.programID = intoSlot
-		this.asyncOperations.push(loadOp)
+		MIDI.jobs.track(loadOp, 'isLoadProgram')
 		return loadOp
 	},
+	onLoadProgram: actionStack(),
 
-	isReady(options = {}) {
-		// TODO Promise.all on all queued items before executing
-		let operations = this.asyncOperations
+	connect(soundModule) {
+		soundModule.connect(this)
+		this.soundModule = soundModule
+	},
 
-		if (options.skip) {
-			debug('Skipping async operations tagged "%s"', options.skip)
-			// TODO Does skip make sense as an array or function?
-			operations = this.asyncOperations.filter(operation => !operation[options.skip])
-		}
+	noteOn(channelID, noteID, velocity = 127, startTime) {
+		this.soundModule.noteOn(channelID, noteID, velocity, startTime)
+	},
 
-		debug('Waiting for %s async operations...', operations.length)
-		return Promise.all(operations)
+	noteOff(channelID, noteID, endTime) {
+		this.soundModule.noteOff(channelID, noteID, endTime)
 	}
 };
-
-[
-	'send', 'noteOn', 'noteOff', 'cancelNotes',
-	'setController', 'setEffects', 'setPitchBend',
-	'setProperty', 'setVolume', 'iOSUnlock'
-].forEach(command => MIDI[command] = function () {
-	debug('The "%s" command is not supported by the currently installed sound module', command)
-})
+//
+//[
+//	'send', 'noteOn', 'noteOff', 'cancelNotes',
+//	'setController', 'setEffects', 'setPitchBend',
+//	'setProperty', 'setVolume', 'iOSUnlock'
+//].forEach(command => MIDI[command] = function () {
+//	debug('The "%s" command is not supported by the currently installed sound
+// module', command) })
 
 function addProperty({object, property, comparator, defaultValue}) {
 	debug('Adding property to object: %O', {
@@ -209,7 +206,8 @@ ChannelProxy.onConstruct(function (channelProxy) {
 MIDI.props2dump.push('programID')
 
 module.exports = MIDI
-module.exports.webaudio = require('./webaudio')
+module.exports.audio = require('./audio')
+module.exports.WebAudio = require('./WebAudio')
 module.exports.gm = require('./GeneralMIDI')
 
 if (console && console.log) {

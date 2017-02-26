@@ -30,7 +30,8 @@
     "gulp-useref": "^1.2.0",
     "package-json-versionify": "^1.0.4",
     "rollupify": "^0.3.9",
-    "uglifyify": "^3.0.4"
+    "uglifyify": "^3.0.4",
+    "babel-polyfill": "^6.23.0"
   },
   "dependencies": {
     "debug": "^2.6.1"

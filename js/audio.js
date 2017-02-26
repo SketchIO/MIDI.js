@@ -1,25 +1,106 @@
-/*
-	----------------------------------------------------------------------
-	adaptors-Audio
-	----------------------------------------------------------------------
-	http://dev.w3.org/html5/spec/Overview.html#the-audio-element
-	----------------------------------------------------------------------
-*/
+const Debug = require('debug')
+const debug = Debug('MIDI.js:legacyaudio')
+
+const MIDI = require('./MIDI')
+const GeneralMIDI = require('./GeneralMIDI')
+
+const bufferPool = []
+
+class Sound {
+	constructor({channelID, noteID, velocity, startTime}) {
+		this.channelID = channelID
+		this.noteID = noteID
+		this.velocity = velocity
+		this.startTime = startTime
+	}
+}
+
+class AudioSound extends Sound {
+	constructor({audioTag, ...soundInfo}) {
+		super(...soundInfo)
+
+		if(MIDI.now() > this.startTime) {
+			// Tsk, a missed opportunity. This sound can't play.
+
+		}
+
+		this.audioTag = audioTag
+
+		var soundfont = MIDI.Soundfont[programId];
+		if (soundfont) {
+			var source = _buffers[bufferId];
+			source.src = soundfont[noteName];
+			source._channel = channel;
+			source._volume = velocity;
+			source._id = sourceId;
+
+			_apply.volume(source);
+
+			source.play();
+
+			_buffer_nid = bufferId;
+			_active[bufferId] = source;
+		} else {
+			MIDI.DEBUG && console.log('404', programId);
+		}
+	}
+}
+
+class WebAudioSound extends Sound {
+	constructor({ctx, ...soundInfo}) {
+		super(...soundInfo)
+
+		this.volumeKnob = ctx.createGain()
+
+		this.source = ctx.createBufferSource()
+		this.source.buffer = audioBuffer
+		this.source.connect(this.volumeKnob)
+		this.source.start(this.startTime)
+		this.source.onended = function() {
+			debug('sound complete.')
+			onEnded.trigger()
+		}
+	}
+}
+
+const audio = {
+	connect() {
+		MIDI.soundModule = this
+	},
+
+	noteOn(channelID, noteID, velocity = 127, delay = 0) {
+		noteID = GeneralMIDI.getNoteNumber(noteID)
+
+		const audioPlayer = audioPlayers.find
+
+		var timeout;
+		var noteName = MIDI.getNoteName(noteID);
+		if (delay) {
+			timeout = setTimeout(function () {
+				startChannel(channelID, noteName, velocity);
+			}, delay * 1000);
+		} else {
+			startChannel(channelID, noteName, velocity);
+		}
+		return {
+			cancel: function () {
+				clearTimeout(timeout);
+			}
+		};
+	}
+}
+
+module.exports = audio
 
 window.Audio && (function () { 'use strict';
 
-	var midi = MIDI.adaptors.audio = {};
-	
 	var _buffers = []; // the audio channels
 	var _buffer_nid = -1; // current channel
 	var _active = []; // programId + noteId that is currently playing in each 'channel', for routing noteOff/chordOff calls
 	var _apply = {};
 
 	/** connect **/
-	midi.connect = function (args) {
-
-		MIDI.adaptor.id = 'audio';
-
+	const connect = function (args) {
 
 		/** init **/
 		for (var bufferId = 0; bufferId < 12; bufferId ++) {
@@ -92,17 +173,18 @@ window.Audio && (function () { 'use strict';
 		});
 	};
 
-
 	/** helpers **/
-	function noteOn(channelId, note, velocity, delay) {
+	function noteOn(channelID, noteID, velocity = 127, delay = 0) {
+		noteID = GeneralMIDI.getNoteNumber(noteID)
+
 		var timeout;
-		var noteName = MIDI.getNoteName(note);
+		var noteName = MIDI.getNoteName(noteID);
 		if (delay) {
 			timeout = setTimeout(function () {
-				startChannel(channelId, noteName, velocity);
+				startChannel(channelID, noteName, velocity);
 			}, delay * 1000);
 		} else {
-			startChannel(channelId, noteName, velocity);
+			startChannel(channelID, noteName, velocity);
 		}
 		return {
 			cancel: function () {
@@ -126,38 +208,6 @@ window.Audio && (function () { 'use strict';
 				clearTimeout(timeout);
 			}
 		};
-	};
-
-	function noteGroupOn(channelId, notes, velocity, delay) {
-		for (var i = 0; i < notes.length; i ++) {
-			var note = notes[i];
-			var noteName = MIDI.getNoteName(note);
-			if (noteName) {
-				if (delay) {
-					return setTimeout(function () {
-						startChannel(channelId, noteName, velocity);
-					}, delay * 1000);
-				} else {
-					startChannel(channelId, noteName, velocity);
-				}
-			}
-		}
-	};
-
-	function noteGroupOff(channelId, notes, delay) {
-		for (var i = 0; i < notes.length; i ++) {
-			var note = notes[i];
-			var noteName = MIDI.getNoteName(note);
-			if (noteName) {
-				if (delay) {
-					return setTimeout(function () {
-						stopChannel(channelId, noteName);
-					}, delay * 1000);
-				} else {
-					stopChannel(channelId, noteName);
-				}
-			}
-		}
 	};
 
 	function startChannel(channelId, noteName, velocity) {
@@ -205,36 +255,6 @@ window.Audio && (function () { 'use strict';
 				}
 			}
 		}
-	};
-
-	function defineProperties() {
-		Object.defineProperties(MIDI, {
-			'mute': set('boolean', false, handler('volume')),
-			'volume': set('number', 1.0, handler('volume'))
-		});
-	
-		function set(_format, _value, _handler) {
-			return {
-				configurable: true,
-				get: function () {
-					return _value;
-				},
-				set: function (value) {
-					if (typeof value === _format) {
-						_value = value;
-						_handler && _handler();
-					}
-				}
-			}
-		};
-
-		function handler(type) {
-			return function () {
-				for (var sourceId in _active) {
-					_apply[type](_active[sourceId]);
-				}
-			};
-		};
 	};
 
 })();
