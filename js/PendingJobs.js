@@ -11,11 +11,7 @@ module.exports = class PendingJobs {
 
 	track(job, ...tags) {
 		this.jobs.add(job)
-		this.jobMetadata.set(job, {
-			status: 'pending',
-			tags
-		})
-
+		this.jobMetadata.set(job, {status: 'pending', tags})
 		job.then(() => {
 			this.jobs.delete(job)
 			this.completedJobs.add(job)
@@ -25,7 +21,7 @@ module.exports = class PendingJobs {
 		})
 	}
 
-	async waitForActiveJobs(options = {}) {
+	waitForActiveJobs(options = {}) {
 		let except = options.except || []
 		if (!Array.isArray(except))
 			except = [except]
@@ -36,8 +32,7 @@ module.exports = class PendingJobs {
 		})
 
 		if (jobs.length) {
-			await Promise.all(jobs)
-			return this.waitForActiveJobs({except})
+			return Promise.all(jobs).then(() => this.waitForActiveJobs({except}))
 		}
 		return Promise.resolve()
 	}
@@ -46,10 +41,7 @@ module.exports = class PendingJobs {
 		const getRows = (jobSet) => {
 			return Array.from(jobSet.values()).map((job) => {
 				const {status, tags} = this.jobMetadata.get(job)
-				return {
-					status,
-					tags: tags.join(', ')
-				}
+				return {status, tags: tags.join(', ')}
 			})
 		}
 

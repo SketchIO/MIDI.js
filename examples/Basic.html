@@ -21,8 +21,8 @@
 
 			window.onload = function () {
 				MIDI.startDebugging()
-				MIDI.connect(new MIDI.WebAudio())
 				MIDI.autoselectFormat()
+				MIDI.connect(new MIDI.WebAudio())
 				MIDI.setChannels(16)
 
 				MIDI.onProgress = function (state, progress) {
@@ -41,36 +41,38 @@
 
 				MIDI.jobs.waitForActiveJobs().then(function () {
 					console.log('Ready to play!')
-					//					const piano = 50
-					//					const drum = 21
-					//					const velocity = 127
-					//
-					//					MIDI.channels[0].programID = 10
-					//					MIDI.channels[1].volume = 50
-					//					for (let i = 0; i < 8; i += 1) {
-					//						MIDI.noteOn(0, drum + (8 - i), velocity, 0.2 * i)
-					//						MIDI.noteOff(0, drum + (8 - i), 0.2 * 8)
-					//
-					//						MIDI.noteOn(1, piano + i, velocity, 0.2 * i)
-					//						MIDI.noteOff(1, piano + i, 0.2 * 8)
-					//					}
+					const piano = 50
+					const drum = 21
+					const velocity = 127
 
-					var startTime = MIDI.currentTime, note, velocity = 127;
+					MIDI.channels[0].programID = 10
+					MIDI.channels[1].volume = 50
+					var currentTime = MIDI.currentTime + 1
+					for (let i = 0; i < 8; i += 1) {
+						MIDI.noteOn(0, drum + (8 - i), velocity, currentTime + 0.23 * i)
+						MIDI.noteOff(0, drum + (8 - i), currentTime + 0.2 * 8)
 
-					for (note = 50; note < 58; ++note) {
-						MIDI.noteOn(0, note, velocity, startTime)
-						MIDI.noteOff(0, note, startTime + 0.75)
-						++startTime
+						MIDI.noteOn(1, piano + i, velocity, currentTime + 0.2 * i)
+						MIDI.noteOff(1, piano + i, currentTime + 0.4 * 8)
+						currentTime += 1
 					}
 
-					setTimeout(function () {
-						startTime = MIDI.currentTime
-						for (var note = 58; note < 67; ++note) {
-							MIDI.noteOn(0, note, velocity, startTime)
-							MIDI.noteOff(0, note, startTime + 0.75)
-							++startTime
-						}
-					}, 4500)
+					//					var startTime = MIDI.currentTime, note, velocity = 127;
+					//
+					//					for (note = 50; note < 58; ++note) {
+					//						MIDI.noteOn(0, note, velocity, startTime)
+					//						MIDI.noteOff(0, note, startTime + 0.2)
+					//						++startTime
+					//					}
+					//
+					//					setTimeout(function () {
+					//						startTime = MIDI.currentTime
+					//						for (var note = 58; note < 67; ++note) {
+					//							MIDI.noteOn(0, note, velocity, startTime)
+					//							MIDI.noteOff(0, note, startTime + 0.2)
+					//							++startTime
+					//						}
+					//					}, 4500)
 
 				})
 			}

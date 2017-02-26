@@ -6,9 +6,7 @@ module.exports = function actionStack() {
 	actionStack.actions = []
 	actionStack.trigger = function() {
 		const originalArguments = Array.from(arguments)
-		actionStack.actions.forEach(function(action) {
-			action(...originalArguments)
-		})
+		return actionStack.actions.map(action => action(...originalArguments))
 	}
 
 	return actionStack

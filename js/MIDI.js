@@ -1,4 +1,4 @@
-require('babel-polyfill')
+//require('babel-polyfill')
 
 const Debug = require('debug')
 const debug = Debug('MIDI.js:root')
@@ -36,7 +36,7 @@ const MIDI = {
 				resolve(response)
 			}, reject)
 		})
-		MIDI.jobs.track(fetchOp, 'isFetch')
+		MIDI.jobs.track(fetchOp, `fetch ${URL}`, 'fetch')
 		return fetchOp
 	},
 
@@ -84,7 +84,7 @@ const MIDI = {
 	},
 
 	autoselectFormat() {
-		debug('Autoselecting an audio format from the following choices: %o', AUDIO_FORMATS)
+		debug('Autoselecting an audio format from the following choices: %j', AUDIO_FORMATS)
 		const autoselectOp = testAudio().then(function (supports) {
 			const format = AUDIO_FORMATS.find(function (format) {
 				return supports[format]
@@ -98,7 +98,7 @@ const MIDI = {
 			debug('Using the "%s" format.', format)
 			MIDI.format = format
 		})
-		MIDI.jobs.track(autoselectOp)
+		MIDI.jobs.track(autoselectOp, 'autoselect a format')
 		return autoselectOp
 	},
 
@@ -110,28 +110,23 @@ const MIDI = {
 	 * @returns {Promise}
 	 */
 	loadProgram({programID = 0, filename, onProgress = MIDI.onProgress}) {
-		const isReady = MIDI.jobs.waitForActiveJobs({except: 'isLoadProgram'})
+		const isReady = MIDI.jobs.waitForActiveJobs({except: 'load program'})
 		const loadOp = new Promise(function (resolve, reject) {
-			isReady.then(async function () {
+			isReady.then(function () {
 				const programURL = filename.replace(/%FORMAT/g, MIDI.format)
 				debug('Fetching "%s"', programURL)
-				try {
-					const program = await MIDI.doFetch({
-						URL: programURL,
-						onProgress,
-						format: 'json'
-					})
-
+				return MIDI.doFetch({
+					URL: programURL,
+					onProgress,
+					format: 'json'
+				}).then(function (program) {
 					MIDI.programs.push({programID, program})
-					await MIDI.onLoadProgram.trigger({programID, program})
+					MIDI.onLoadProgram.trigger({programID, program})
 					resolve({programID, program})
-				} catch (error) {
-					reject(error)
-				}
-
+				}).catch(reject)
 			})
 		})
-		MIDI.jobs.track(loadOp, 'isLoadProgram')
+		MIDI.jobs.track(loadOp, 'load program')
 		return loadOp
 	},
 	onLoadProgram: actionStack(),
@@ -159,7 +154,7 @@ const MIDI = {
 // module', command) })
 
 function addProperty({object, property, comparator, defaultValue}) {
-	debug('Adding property to object: %O', {
+	debug('Adding property to object: %j', {
 		object,
 		property,
 		comparator,

@@ -38,7 +38,7 @@
   },
   "scripts": {
     "devserver": "budo js/MIDI.js:build/MIDI.js --live -- -t package-json-versionify -t [ babelify --presets [ es2015 stage-3 ] ] -t rollupify --standalone MIDI",
-    "build": "mkdir build && browserify -t package-json-versionify -t [ babelify --presets [ es2015 stage-3 ] ] -t aliasify -t uglifyify -t rollupify --standalone MIDI js/MIDI.js > build/MIDI.js"
+    "build": "mkdir -p build && browserify -t package-json-versionify -t [ babelify --presets [ es2015 stage-3 ] ] -t aliasify -t uglifyify -t rollupify --standalone MIDI js/MIDI.js > build/MIDI.js"
   },
   "aliasify": {
     "aliases": {

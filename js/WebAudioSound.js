@@ -38,7 +38,7 @@ module.exports = class WebAudioSound extends Sound {
 		const channel = MIDI.channels[this.channelID]
 
 		if (MIDI.mute || channel.mute) {
-			debug('Muting: %o', {sound: this})
+			debug('Muting: %j', {sound: this})
 			this.volumeKnob.gain.value = 0.0
 		} else {
 			const volume = (MIDI.volume / 127) * (channel.volume / 127) * (this.velocity / 127)

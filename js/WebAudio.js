@@ -4,7 +4,10 @@ const debug = Debug('MIDI.js:webaudio')
 const MIDI = require('./MIDI')
 const GeneralMIDI = require('./GeneralMIDI')
 const dataURI = require('./dataURI')
+
+const Sound = require('./Sound')
 const WebAudioSound = require('./WebAudioSound')
+
 const ChannelProxy = require('./ChannelProxy')
 const BufferDB = require('./webaudio/BufferDB')
 const SoundModule = require('./SoundModule')
@@ -79,7 +82,7 @@ module.exports = class WebAudio extends SoundModule {
 			resolve()
 		})
 
-		MIDI.jobs.track(connectOp, 'isConnect')
+		MIDI.jobs.track(connectOp, 'connect sound module')
 		return connectOp
 	}
 
@@ -90,21 +93,15 @@ module.exports = class WebAudio extends SoundModule {
 		const programID = MIDI.channels[channelID].programID
 
 		if (!this.buffers.has(programID, noteID)) {
-			debug('An attempt was made to play a note in a program without an associated buffer: %o', {
-				programID,
-				noteID
+			debug('Cannot play note on channel due to a missing audio buffer: %j', {
+				channelID, noteID, velocity, startTime
 			})
-			// TODO Should something be returned here? A fake sound task?
-			return
+			return new Sound({channelID, noteID, velocity, startTime})
 		}
 
-		debug('Playing note: %o', {
-			programID,
-			channelID,
-			noteID,
-			velocity,
-			startTime
-		})
+		debug('Playing note: %j',
+			{programID, channelID, noteID, velocity, startTime})
+
 		const audioBuffer = this.buffers.get(programID, noteID)
 		const sound = new WebAudioSound({
 			context: this.context, audioBuffer,
@@ -120,7 +117,7 @@ module.exports = class WebAudio extends SoundModule {
 		endTime = endTime || this.context.currentTime
 
 		this.sounds.filter(function (sound) {
-			return sound.channelID === channelID && sound.noteID === noteID && !sound.isEnding
+			return sound.channelID === channelID && sound.noteID === noteID
 		}).forEach(function (sound) {
 			sound.scheduleFadeOut(endTime)
 		})
@@ -128,7 +125,7 @@ module.exports = class WebAudio extends SoundModule {
 
 	processProgram({programID, program, onProgress = MIDI.onProgress}) {
 		if (typeof programID === 'undefined') {
-			debug('I cannot process a program without a programID: %o', arguments)
+			debug('I cannot process a program without a programID: %j', arguments)
 			return Promise.reject
 		}
 
@@ -136,20 +133,20 @@ module.exports = class WebAudio extends SoundModule {
 		const bufferJobs = Object.keys(notes).map((note) => {
 			const noteID = GeneralMIDI.getNoteNumber(note)
 			if (!noteID) {
-				debug('I cannot process a note that does not have a valid note number: %o', {
+				debug('I cannot process a note that does not have a valid note number: %j', {
 					noteID,
 					note
 				})
-				// Rejecting would cause the whole thing to come crashing down.
+				// Rejecting would cause the whole building to come crashing down.
 				// Instead, might as well just skip this note.
 				return Promise.resolve()
 			}
 
 			const noteContents = program[note]
-			debug('Processing note: %o', {noteID, note, noteContents})
+			debug('Processing note: %j', {noteID, note, noteContents})
 
 			const storeBuffer = (audioBuffer) => {
-				debug('Storing audio buffer: %o', {programID, noteID, audioBuffer})
+				debug('Storing audio buffer: %j', {programID, noteID, audioBuffer})
 				this.buffers.set(programID, noteID, audioBuffer)
 			}
 
@@ -165,8 +162,7 @@ module.exports = class WebAudio extends SoundModule {
 		})
 
 		const processOp = Promise.all(bufferJobs)
-		processOp.isProcessProgram = true
-		MIDI.jobs.track(processOp)
+		MIDI.jobs.track(processOp, `process program ${programID}.`)
 		return processOp
 	}
 
