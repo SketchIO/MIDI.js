@@ -8,6 +8,7 @@ const basicProperties = require('./basicProperties')
 const PendingJobs = require('./PendingJobs')
 const dump = require('./dump')
 const GM = require('./GM')
+const Program = require('./Program')
 
 const AUDIO_FORMATS = ['mp3', 'ogg']
 const AUTOSELECT = 'autoselect'
@@ -23,7 +24,6 @@ const MIDI = {
 	format: AUTOSELECT,
 	soundModule: null,
 	onProgress: NOOP,
-	channels: [],
 	programs: [],
 	onPropertyChange: actionStack(),
 
@@ -76,14 +76,6 @@ const MIDI = {
 		dump(rows)
 	},
 
-	setChannels(channelCount) {
-		const ChannelProxy = require('./ChannelProxy')
-		for (let channelID = this.channels.length; channelID < channelCount; channelID += 1) {
-			this.channels.push(new ChannelProxy(channelID))
-		}
-		this.channels.splice(channelCount)
-	},
-
 	autoselectFormat() {
 		debug('Autoselecting an audio format from the following choices: %j', AUDIO_FORMATS)
 		const autoselectOp = testAudio().then(function (supports) {
@@ -110,91 +102,37 @@ const MIDI = {
 	 * @param {function} onProgress
 	 * @returns {Promise}
 	 */
-	loadProgram({programID = 0, filename, onProgress = MIDI.onProgress}) {
+	loadProgram({programID = 0, program, onProgress = MIDI.onProgress}) {
 		const isReady = MIDI.jobs.waitForActiveJobs({except: 'load program'})
 		const loadOp = new Promise(function (resolve, reject) {
 			isReady.then(function () {
-				const programURL = filename.replace(/%FORMAT/g, MIDI.format)
-				debug('Fetching "%s"', programURL)
-				return MIDI.doFetch({
-					URL: programURL,
-					onProgress,
-					format: 'json'
-				}).then(function (programData) {
-					const program = Program.wrap(programData)
-					MIDI.programs[programID] = program
-					MIDI.onLoadProgram.trigger(programID, program, programData)
-					resolve({programID, program, programData})
-				}).catch(reject)
+				switch (typeof program) {
+					case 'string':
+						const programURL = program.replace(/%FORMAT/g, MIDI.format)
+						debug('Fetching "%s"', programURL)
+						return MIDI.doFetch({
+							URL: programURL,
+							onProgress,
+							format: 'json'
+						}).then(function (programData) {
+							const program = Program.wrap(programData)
+							MIDI.programs[programID] = program
+							MIDI.onLoadProgram.trigger(programID, program, programData)
+							resolve({programID, program, programData})
+						}).catch(reject)
+					case 'object':
+					default:
+						const wrappedProgram = Program.wrap(program)
+						MIDI.programs[programID] = wrappedProgram
+						MIDI.onLoadProgram.trigger(programID, wrappedProgram, program)
+						resolve({programID, program: wrappedProgram, programData: program})
+				}
 			})
 		})
 		MIDI.jobs.track(loadOp, 'load program')
 		return loadOp
 	},
-	onLoadProgram: actionStack(),
-
-	connect(soundModule) {
-		soundModule.connect(this)
-		this.soundModule = soundModule
-	},
-
-	noteOn(channelID, noteID, velocity = 127, startTime) {
-		return this.soundModule.noteOn(channelID, noteID, velocity, startTime)
-	},
-
-	noteOff(channelID, noteID, endTime) {
-		this.soundModule.noteOff(channelID, noteID, endTime)
-	}
-}
-
-function NoteArray() {
-	return new Proxy([], {
-		get(target, property) {
-			switch (property) {
-				case 'entries':
-					// TODO Return only notes that exist
-				default:
-					const noteID = GM.getNoteNumber(property)
-					return Reflect.get(target, noteID ? noteID : property)
-			}
-		},
-
-		set(target, note, value) {
-			const noteID = GM.getNoteNumber(note)
-			return Reflect.set(target, noteID ? noteID : note, value)
-		}
-	})
-}
-
-class Program {
-	static wrap(rawProgram) {
-		return new Program(rawProgram)
-	}
-
-	constructor(rawProgram) {
-		this.metadata = {}
-		this.notes = new NoteArray()
-
-		for (const noteName in rawProgram) {
-			switch (noteName) {
-				case '__METADATA':
-					this.metadata = rawProgram[noteName]
-					break
-				default:
-					const noteID = GM.getNoteNumber(noteName)
-					const note = rawProgram[noteName]
-					switch (typeof note) {
-						case 'string':
-							this.notes[noteID] = {
-								noteData: note
-							}
-							break
-						case 'object':
-							this.notes[noteID] = note
-					}
-			}
-		}
-	}
+	onLoadProgram: actionStack()
 }
 
 function addProperty({object, property, comparator, defaultValue}) {
@@ -228,7 +166,7 @@ function isNumber(n) {
 	return !isNaN(parseFloat(n)) && isFinite(n);
 }
 
-const ChannelProxy = require('./ChannelProxy')
+const ChannelProxy = require('./Channel')
 ChannelProxy.onConstruct(function (channelProxy) {
 	[
 		...basicProperties,
@@ -245,9 +183,16 @@ ChannelProxy.onConstruct(function (channelProxy) {
 MIDI.props2dump.push('programID')
 
 module.exports = MIDI
-module.exports.AudioTag = require('./AudioTag')
-module.exports.WebAudio = require('./WebAudio')
 module.exports.GM = require('./GM')
+
+module.exports.controllers = {
+	Controller: require('./controllers/Controller'),
+	SoundBoard: require('./controllers/SoundBoard')
+}
+
+module.exports.soundModules = {
+	WebAudio: require('./WebAudio')
+}
 
 if (console && console.log) {
 	console.log(`%c♥ MIDI.js ${MIDI.VERSION} ♥`, 'color: red;')

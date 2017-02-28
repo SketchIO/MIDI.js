@@ -19,12 +19,20 @@
 	</head>
 	<body>
 		<script>
-
 			window.onload = function () {
 				MIDI.startDebugging()
 				MIDI.autoselectFormat()
-				MIDI.connect(new MIDI.WebAudio())
-				MIDI.setChannels(1)
+
+				const controller = new MIDI.controllers.SoundBoard({
+					brush_stroke: {
+						note: 'B0',
+						requiresInteraction: true,
+						maxSimultaneous: 1
+					}
+				})
+				const soundModule = new MIDI.soundModules.WebAudio()
+				controller.connect(soundModule)
+				controller.setChannels(1)
 
 				MIDI.onProgress = function (state, progress) {
 					console.log('Loading:', progress.toFixed(2), '%')
@@ -32,66 +40,37 @@
 
 				MIDI.loadProgram({
 					programID: 0,
-					filename: './soundfont/soundDB.json'
+					program: './soundfont/soundDB.json'
 				})
 
 				MIDI.volume = 127
 				MIDI.jobs.waitForActiveJobs().then(function () {
 					console.log('Ready to play!')
 					var time = MIDI.currentTime + 1
-					//					for(let j = 0; j < 10; j += 1) {
-					//						for (let i = 0; i < 10; i += 1) {
-					//							console.log(MIDI.currentTime)
-					//							MIDI.noteOn(1, piano + i + 2, velocity, time += 0.1)
-					//							MIDI.noteOff(1, piano + i + 2, time + 0.4)
-					//						}
-					//						time += 1
-					//
-					//						if(j === 5) {
-					//							MIDI.channels[1].programID = 10
-					//						}
-					//					}
 
 					let active = false
-					const note = 'B0'
 					window.addEventListener('mousedown', function () {
-						MIDI.noteOn(0, note)
+						controller.press('brush_stroke')
 						active = true
 					})
 
 					let muteTimer
 					window.addEventListener('mousemove', function (e) {
+						controller.startInteractingWith('brush_stroke')
+						//						const noteInfo = MIDI.programs[0].notes[note]
 						clearTimeout(muteTimer)
 						if (active) {
-							MIDI.channels[0].volume = 127
-							muteTimer = setTimeout(() => MIDI.channels[0].volume = 0, 200)
+							//							controller.channels[0].volume = 127
+							muteTimer = setTimeout(() => controller.stopInteractingWith('brush_stroke'), 300)
 						}
 					})
 
 					window.addEventListener('mouseup', function () {
-						MIDI.noteOff(0, note)
+						//						controller.noteOff(0, note)
+						//						controller.channels[0].volume = 127
+						controller.release('brush_stroke')
 						active = false
 					})
-
-					//						MIDI.noteOff(1, 'A0', time + 100)
-
-					//					var startTime = MIDI.currentTime, note, velocity = 127;
-					//
-					//					for (note = 50; note < 58; ++note) {
-					//						MIDI.noteOn(0, note, velocity, startTime)
-					//						MIDI.noteOff(0, note, startTime + 0.2)
-					//						++startTime
-					//					}
-					//
-					//					setTimeout(function () {
-					//						startTime = MIDI.currentTime
-					//						for (var note = 58; note < 67; ++note) {
-					//							MIDI.noteOn(0, note, velocity, startTime)
-					//							MIDI.noteOff(0, note, startTime + 0.2)
-					//							++startTime
-					//						}
-					//					}, 4500)
-
 				})
 			}
 

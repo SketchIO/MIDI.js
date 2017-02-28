@@ -16,7 +16,7 @@ function clamp(value, a, b) {
 }
 
 module.exports = class WebAudioNote extends Sound {
-	constructor({soundModule, ...soundArgs}) {
+	constructor({soundModule, channel, ...soundArgs}) {
 		super(soundArgs)
 		this.soundModule = soundModule
 		this.onEnded = actionStack()
@@ -25,19 +25,20 @@ module.exports = class WebAudioNote extends Sound {
 		this.volumeKnob = AudioContext.createGain()
 		this.volumeKnob.connect(AudioContext.destination)
 
+		this.channel = channel
 		for (let property of ['programID', 'mute', 'volume', 'detune']) {
 			this.updateProperty(property)
 		}
 	}
 
 	cancelImmediately() {
-		for (let sound of this.activeSounds()) {
+		for (let sound of this.activeSounds.values()) {
 			sound.stop()
 		}
 	}
 
 	updateProperty(property) {
-		const channel = MIDI.channels[this.channelID]
+		const channel = this.channel
 		const programID = channel.programID
 		const noteID = this.noteID
 		const noteInfo = MIDI.programs[programID].notes[noteID]
@@ -121,7 +122,7 @@ module.exports = class WebAudioNote extends Sound {
 
 	scheduleFadeOut(time) {
 		debug('scheduleFadeOut called')
-		const RELEASE = 0.5
+		const RELEASE = 1
 		if (!time) {
 			time = MIDI.currentTime + RELEASE
 		}
@@ -132,10 +133,11 @@ module.exports = class WebAudioNote extends Sound {
 		// add { 'metadata': { release: 0.3 } } to soundfont files
 
 		for (let sound of this.activeSounds) {
+			sound.loop = false
 			sound.volumeKnob.gain.cancelScheduledValues(MIDI.currentTime)
 			sound.volumeKnob.gain.linearRampToValueAtTime(this.volumeKnob.gain.value, time)
-			sound.volumeKnob.gain.linearRampToValueAtTime(0.0, time + RELEASE)
-			sound.stop(time + 0.7)
+			sound.volumeKnob.gain.linearRampToValueAtTime(0.5, time + RELEASE)
+			sound.stop(time + RELEASE)
 		}
 	}
 

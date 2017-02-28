@@ -8,24 +8,22 @@ const dataURI = require('./dataURI')
 const DummyNote = require('./Sound')
 const Note = require('./WebAudioNote')
 
-const ChannelProxy = require('./ChannelProxy')
+const ChannelProxy = require('./Channel')
 const BufferDB = require('./webaudio/BufferDB')
-const SoundModule = require('./SoundModule')
+const SoundModule = require('./soundModules/SoundModule')
 const base64 = require('./base64')
 const AudioContext = require('./AudioContext')
+const filter = require('./filter')
 
 module.exports = class WebAudio extends SoundModule {
 	constructor() {
 		super()
 		this.buffers = BufferDB.create()
 
-		this.sounds = new Set()
-		this.sounds.filter = function (action) {
-			return Array.from(this.values()).filter(action)
-		}
-		this.sounds.selectSoundsRequiringUpdate = function (selector) {
+		this.notes = new Set()
+		this.notes.selectSoundsRequiringUpdate = function (selector) {
 			if (selector instanceof ChannelProxy) {
-				return this.filter(function (task) {
+				return filter(this, function (task) {
 					return task.channelID === selector.channelID
 				})
 			}
@@ -33,7 +31,9 @@ module.exports = class WebAudio extends SoundModule {
 		}
 	}
 
-	connect(MIDI) {
+	beConnectedTo(upstream) {
+		super.beConnectedTo(upstream)
+
 		Object.defineProperty(MIDI, 'currentTime', {
 			get() {
 				return AudioContext.currentTime
@@ -42,7 +42,7 @@ module.exports = class WebAudio extends SoundModule {
 
 		this.onPropertyChange = MIDI.onPropertyChange((selector, property, newValue) => {
 			debug('Property change detected! Updating tasks...')
-			this.sounds.selectSoundsRequiringUpdate(selector).forEach(function (sound) {
+			this.notes.selectSoundsRequiringUpdate(selector).forEach(function (sound) {
 				sound.updateProperty(property)
 			})
 		})
@@ -75,14 +75,15 @@ module.exports = class WebAudio extends SoundModule {
 
 		const note = new Note({
 			soundModule: this,
+			channel: this.upstream.channels[channelID],
 			channelID, noteID, velocity, startTime
 		})
 
 		note.onEnded(() => {
-			this.sounds.delete(note)
+			this.notes.delete(note)
 		})
 
-		this.sounds.add(note)
+		this.notes.add(note)
 		return note
 	}
 
@@ -90,7 +91,7 @@ module.exports = class WebAudio extends SoundModule {
 		noteID = GM.getNoteNumber(noteID)
 		endTime = endTime || MIDI.currentTime
 
-		this.sounds.filter(function (sound) {
+		filter(this.notes, function (sound) {
 			return sound.channelID === channelID && sound.noteID === noteID
 		}).forEach(function (sound) {
 			sound.scheduleFadeOut(endTime)
