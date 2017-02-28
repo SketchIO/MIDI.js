@@ -13,6 +13,7 @@
 		<script src="../inc/dom/request_xhr.js"></script>
 		<script src="../inc/EventEmitter.js"></script>
 
+		<script src="https://wzrd.in/standalone/tunajs@latest"></script>
 		<script src="../build/MIDI.js"></script>
 
 	</head>
@@ -23,7 +24,7 @@
 				MIDI.startDebugging()
 				MIDI.autoselectFormat()
 				MIDI.connect(new MIDI.WebAudio())
-				MIDI.setChannels(16)
+				MIDI.setChannels(1)
 
 				MIDI.onProgress = function (state, progress) {
 					console.log('Loading:', progress.toFixed(2), '%')
@@ -31,31 +32,48 @@
 
 				MIDI.loadProgram({
 					programID: 0,
-					filename: './soundfont/acoustic_grand_piano-%FORMAT.json'
+					filename: './soundfont/soundDB.json'
 				})
 
-				MIDI.loadProgram({
-					programID: 10,
-					filename: './soundfont/synth_drum-%FORMAT.json'
-				})
-
+				MIDI.volume = 127
 				MIDI.jobs.waitForActiveJobs().then(function () {
 					console.log('Ready to play!')
-					const piano = 50
-					const drum = 21
-					const velocity = 127
+					var time = MIDI.currentTime + 1
+					//					for(let j = 0; j < 10; j += 1) {
+					//						for (let i = 0; i < 10; i += 1) {
+					//							console.log(MIDI.currentTime)
+					//							MIDI.noteOn(1, piano + i + 2, velocity, time += 0.1)
+					//							MIDI.noteOff(1, piano + i + 2, time + 0.4)
+					//						}
+					//						time += 1
+					//
+					//						if(j === 5) {
+					//							MIDI.channels[1].programID = 10
+					//						}
+					//					}
 
-					MIDI.channels[0].programID = 10
-					MIDI.channels[1].volume = 50
-					var currentTime = MIDI.currentTime + 1
-					for (let i = 0; i < 8; i += 1) {
-						MIDI.noteOn(0, drum + (8 - i), velocity, currentTime + 0.23 * i)
-						MIDI.noteOff(0, drum + (8 - i), currentTime + 0.2 * 8)
+					let active = false
+					const note = 'B0'
+					window.addEventListener('mousedown', function () {
+						MIDI.noteOn(0, note)
+						active = true
+					})
 
-						MIDI.noteOn(1, piano + i, velocity, currentTime + 0.2 * i)
-						MIDI.noteOff(1, piano + i, currentTime + 0.4 * 8)
-						currentTime += 1
-					}
+					let muteTimer
+					window.addEventListener('mousemove', function (e) {
+						clearTimeout(muteTimer)
+						if (active) {
+							MIDI.channels[0].volume = 127
+							muteTimer = setTimeout(() => MIDI.channels[0].volume = 0, 200)
+						}
+					})
+
+					window.addEventListener('mouseup', function () {
+						MIDI.noteOff(0, note)
+						active = false
+					})
+
+					//						MIDI.noteOff(1, 'A0', time + 100)
 
 					//					var startTime = MIDI.currentTime, note, velocity = 127;
 					//

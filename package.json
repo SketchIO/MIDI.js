@@ -31,14 +31,14 @@
     "package-json-versionify": "^1.0.4",
     "rollupify": "^0.3.9",
     "uglifyify": "^3.0.4",
-    "babel-polyfill": "^6.23.0"
+    "dedebug": "^1.0.0"
   },
   "dependencies": {
     "debug": "^2.6.1"
   },
   "scripts": {
     "devserver": "budo js/MIDI.js:build/MIDI.js --live -- -t package-json-versionify -t [ babelify --presets [ es2015 stage-3 ] ] -t rollupify --standalone MIDI",
-    "build": "mkdir -p build && browserify -t package-json-versionify -t [ babelify --presets [ es2015 stage-3 ] ] -t aliasify -t uglifyify -t rollupify --standalone MIDI js/MIDI.js > build/MIDI.js"
+    "build": "mkdir -p build && browserify -t package-json-versionify -t [ babelify --presets [ es2015 stage-3 ] ] -t dedebug -t uglifyify -t rollupify --standalone MIDI js/MIDI.js > build/MIDI.js"
   },
   "aliasify": {
     "aliases": {

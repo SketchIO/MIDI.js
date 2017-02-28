@@ -7,6 +7,7 @@ const actionStack = require('./actionStack')
 const basicProperties = require('./basicProperties')
 const PendingJobs = require('./PendingJobs')
 const dump = require('./dump')
+const GM = require('./GM')
 
 const AUDIO_FORMATS = ['mp3', 'ogg']
 const AUTOSELECT = 'autoselect'
@@ -119,10 +120,11 @@ const MIDI = {
 					URL: programURL,
 					onProgress,
 					format: 'json'
-				}).then(function (program) {
-					MIDI.programs.push({programID, program})
-					MIDI.onLoadProgram.trigger({programID, program})
-					resolve({programID, program})
+				}).then(function (programData) {
+					const program = Program.wrap(programData)
+					MIDI.programs[programID] = program
+					MIDI.onLoadProgram.trigger(programID, program, programData)
+					resolve({programID, program, programData})
 				}).catch(reject)
 			})
 		})
@@ -137,21 +139,63 @@ const MIDI = {
 	},
 
 	noteOn(channelID, noteID, velocity = 127, startTime) {
-		this.soundModule.noteOn(channelID, noteID, velocity, startTime)
+		return this.soundModule.noteOn(channelID, noteID, velocity, startTime)
 	},
 
 	noteOff(channelID, noteID, endTime) {
 		this.soundModule.noteOff(channelID, noteID, endTime)
 	}
-};
-//
-//[
-//	'send', 'noteOn', 'noteOff', 'cancelNotes',
-//	'setController', 'setEffects', 'setPitchBend',
-//	'setProperty', 'setVolume', 'iOSUnlock'
-//].forEach(command => MIDI[command] = function () {
-//	debug('The "%s" command is not supported by the currently installed sound
-// module', command) })
+}
+
+function NoteArray() {
+	return new Proxy([], {
+		get(target, property) {
+			switch (property) {
+				case 'entries':
+					// TODO Return only notes that exist
+				default:
+					const noteID = GM.getNoteNumber(property)
+					return Reflect.get(target, noteID ? noteID : property)
+			}
+		},
+
+		set(target, note, value) {
+			const noteID = GM.getNoteNumber(note)
+			return Reflect.set(target, noteID ? noteID : note, value)
+		}
+	})
+}
+
+class Program {
+	static wrap(rawProgram) {
+		return new Program(rawProgram)
+	}
+
+	constructor(rawProgram) {
+		this.metadata = {}
+		this.notes = new NoteArray()
+
+		for (const noteName in rawProgram) {
+			switch (noteName) {
+				case '__METADATA':
+					this.metadata = rawProgram[noteName]
+					break
+				default:
+					const noteID = GM.getNoteNumber(noteName)
+					const note = rawProgram[noteName]
+					switch (typeof note) {
+						case 'string':
+							this.notes[noteID] = {
+								noteData: note
+							}
+							break
+						case 'object':
+							this.notes[noteID] = note
+					}
+			}
+		}
+	}
+}
 
 function addProperty({object, property, comparator, defaultValue}) {
 	debug('Adding property to object: %j', {
@@ -167,7 +211,7 @@ function addProperty({object, property, comparator, defaultValue}) {
 		},
 
 		set(newValue) {
-			if (comparator(newValue)) {
+			if (currentValue != newValue && comparator(newValue)) {
 				currentValue = newValue
 				MIDI.onPropertyChange.trigger(this, property, newValue)
 			}
@@ -201,9 +245,9 @@ ChannelProxy.onConstruct(function (channelProxy) {
 MIDI.props2dump.push('programID')
 
 module.exports = MIDI
-module.exports.audio = require('./audio')
+module.exports.AudioTag = require('./AudioTag')
 module.exports.WebAudio = require('./WebAudio')
-module.exports.gm = require('./GeneralMIDI')
+module.exports.GM = require('./GM')
 
 if (console && console.log) {
 	console.log(`%c♥ MIDI.js ${MIDI.VERSION} ♥`, 'color: red;')

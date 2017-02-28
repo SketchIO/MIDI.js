@@ -1,15 +1,6 @@
 const Debug = require('debug')
 const debug = Debug('MIDI.js:dataURI')
-
-function fromBase64ToBuffer(rawContents) {
-	const binaryData = atob(rawContents)
-	const buffer = new ArrayBuffer(binaryData.length)
-	const uintView = new Uint8Array(buffer)
-	for (let i = 0; i < binaryData.length; i++) {
-		uintView[i] = binaryData.charCodeAt(i)
-	}
-	return buffer
-}
+const base64 = require('./base64')
 
 function MIMEType(URI) {
 	const [SIGIL, rest] = URI.split(':')
@@ -34,7 +25,7 @@ module.exports = {
 		switch(format) {
 			case 'base64':
 				debug('Converting a base64 data URI to an ArrayBuffer')
-				return fromBase64ToBuffer(rawContents)
+				return base64.toBuffer(rawContents)
 			default:
 				debug('The data URI format "%s" is not supported!', format)
 				throw new Error('The data URI format "' + format + '" is not supported!')

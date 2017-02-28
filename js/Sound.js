@@ -7,6 +7,7 @@ module.exports = class Sound {
 		this.noteID = noteID
 		this.velocity = velocity
 		this.startTime = startTime
+		this.isEnding = false
 	}
 
 	cancelImmediately() {

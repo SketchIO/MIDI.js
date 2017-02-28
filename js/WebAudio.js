@@ -1,67 +1,49 @@
 const Debug = require('debug')
-const debug = Debug('MIDI.js:webaudio')
+const debug = Debug('MIDI.js:src/webaudio/WebAudio.js')
 
 const MIDI = require('./MIDI')
-const GeneralMIDI = require('./GeneralMIDI')
+const GM = require('./GM')
 const dataURI = require('./dataURI')
 
-const Sound = require('./Sound')
-const WebAudioSound = require('./WebAudioSound')
+const DummyNote = require('./Sound')
+const Note = require('./WebAudioNote')
 
 const ChannelProxy = require('./ChannelProxy')
 const BufferDB = require('./webaudio/BufferDB')
 const SoundModule = require('./SoundModule')
+const base64 = require('./base64')
+const AudioContext = require('./AudioContext')
 
 module.exports = class WebAudio extends SoundModule {
-	static createAudioContext() {
-		const ctx = new (window.AudioContext || window.webkitAudioContext)()
-		try {
-			const buffer = ctx.createBuffer(1, 1, 44100);
-			const source = ctx.createBufferSource();
-			source.detune.value = 1200
-			ctx.hasDetune = true
-		} catch (e) {
-			debug('Detune is not supported on this platform')
-		}
-
-		return ctx
-	}
-
-	static iOSUnlock() {
-		if (ctx.unlocked !== true) {
-			ctx.unlocked = true;
-			var buffer = ctx.createBuffer(1, 1, 44100);
-			var source = ctx.createBufferSource();
-			source.buffer = buffer;
-			source.connect(ctx.destination);
-			source.start(0);
-		}
-	}
-
 	constructor() {
 		super()
-		this.context = WebAudio.createAudioContext()
-		this.sounds = []
 		this.buffers = BufferDB.create()
+
+		this.sounds = new Set()
+		this.sounds.filter = function (action) {
+			return Array.from(this.values()).filter(action)
+		}
 		this.sounds.selectSoundsRequiringUpdate = function (selector) {
 			if (selector instanceof ChannelProxy) {
 				return this.filter(function (task) {
-					return task.channelID === object.channelID
+					return task.channelID === selector.channelID
 				})
 			}
-
 			return this
 		}
 	}
 
 	connect(MIDI) {
-		MIDI.soundModule = this
-		MIDI.currentTime = this.context.currentTime
+		Object.defineProperty(MIDI, 'currentTime', {
+			get() {
+				return AudioContext.currentTime
+			}
+		})
 
 		this.onPropertyChange = MIDI.onPropertyChange((selector, property, newValue) => {
 			debug('Property change detected! Updating tasks...')
 			this.sounds.selectSoundsRequiringUpdate(selector).forEach(function (sound) {
-				sound.updateProperties()
+				sound.updateProperty(property)
 			})
 		})
 
@@ -87,34 +69,26 @@ module.exports = class WebAudio extends SoundModule {
 	}
 
 	noteOn(channelID, noteID, velocity = 127, startTime) {
-		noteID = GeneralMIDI.getNoteNumber(noteID)
-		startTime = startTime || this.context.currentTime
+		noteID = GM.getNoteNumber(noteID)
+		startTime = startTime || MIDI.currentTime
+		debug('Playing note: %j', {channelID, noteID, velocity, startTime})
 
-		const programID = MIDI.channels[channelID].programID
-
-		if (!this.buffers.has(programID, noteID)) {
-			debug('Cannot play note on channel due to a missing audio buffer: %j', {
-				channelID, noteID, velocity, startTime
-			})
-			return new Sound({channelID, noteID, velocity, startTime})
-		}
-
-		debug('Playing note: %j',
-			{programID, channelID, noteID, velocity, startTime})
-
-		const audioBuffer = this.buffers.get(programID, noteID)
-		const sound = new WebAudioSound({
-			context: this.context, audioBuffer,
+		const note = new Note({
+			soundModule: this,
 			channelID, noteID, velocity, startTime
 		})
 
-		this.sounds.push(sound)
-		return sound
+		note.onEnded(() => {
+			this.sounds.delete(note)
+		})
+
+		this.sounds.add(note)
+		return note
 	}
 
 	noteOff(channelID, noteID, endTime) {
-		noteID = GeneralMIDI.getNoteNumber(noteID)
-		endTime = endTime || this.context.currentTime
+		noteID = GM.getNoteNumber(noteID)
+		endTime = endTime || MIDI.currentTime
 
 		this.sounds.filter(function (sound) {
 			return sound.channelID === channelID && sound.noteID === noteID
@@ -123,63 +97,40 @@ module.exports = class WebAudio extends SoundModule {
 		})
 	}
 
-	processProgram({programID, program, onProgress = MIDI.onProgress}) {
-		if (typeof programID === 'undefined') {
-			debug('I cannot process a program without a programID: %j', arguments)
-			return Promise.reject
+	processProgram(programID, program, _, onProgress = MIDI.onProgress) {
+		const jobs = []
+		for(const [noteID, note] of program.notes.entries()) {
+			if(!note) continue
+			const {noteData} = note
+			debug('Processing note: %o', {noteID, noteData})
+			jobs.push(this.processNote(programID, noteID, noteData))
 		}
 
-		const {__METADATA, ...notes} = program
-		const bufferJobs = Object.keys(notes).map((note) => {
-			const noteID = GeneralMIDI.getNoteNumber(note)
-			if (!noteID) {
-				debug('I cannot process a note that does not have a valid note number: %j', {
-					noteID,
-					note
-				})
-				// Rejecting would cause the whole building to come crashing down.
-				// Instead, might as well just skip this note.
-				return Promise.resolve()
-			}
-
-			const noteContents = program[note]
-			debug('Processing note: %j', {noteID, note, noteContents})
-
-			const storeBuffer = (audioBuffer) => {
-				debug('Storing audio buffer: %j', {programID, noteID, audioBuffer})
-				this.buffers.set(programID, noteID, audioBuffer)
-			}
-
-			// Currently, if the sample is a data URI then we shortcut and
-			// just decode the sample. If it's not, I assume that sample is a URL.
-			switch (typeof noteContents) {
-				case 'object':
-					return this.handleNote(noteContents.data).then(storeBuffer)
-				case 'string':
-				default:
-					return this.handleNote(noteContents).then(storeBuffer)
-			}
-		})
-
-		const processOp = Promise.all(bufferJobs)
-		MIDI.jobs.track(processOp, `process program ${programID}.`)
-		return processOp
+		const processJob = Promise.all(jobs)
+		MIDI.jobs.track(processJob, `process program ${programID}.`)
+		return processJob
 	}
 
-	handleNote(noteContents) {
-		if (dataURI.test(noteContents)) {
-			return this.context.decodeAudioData(dataURI.toBuffer(noteContents))
+	processNote(programID, noteID, noteData) {
+		let job
+		if(base64.test(noteData)) {
+			job = AudioContext.decodeAudioData(base64.toBuffer(noteData))
+		} else if (dataURI.test(noteData)) {
+			job = AudioContext.decodeAudioData(dataURI.toBuffer(noteData))
 		} else {
-			return MIDI.doFetch({
-				URL: noteContents,
+			job = MIDI.doFetch({
+				URL: noteData,
 				onProgress,
 				responseType: 'arraybuffer'
 			}).then(function (event) {
 				console.log(arguments)
 				debugger
 				const response = new ArrayBuffer()
-				return this.context.decodeAudioData(response)
+				return AudioContext.decodeAudioData(response)
 			})
 		}
+
+		return job.then((audioBuffer) =>
+			this.buffers.set(programID, noteID, audioBuffer))
 	}
 }
