@@ -14,7 +14,7 @@
     "type": "git",
     "url": "git://github.com/mudcube/MIDI.js.git"
   },
-  "main": "./build/MIDI.min.js",
+  "main": "js/MIDI.js",
   "devDependencies": {
     "aliasify": "^2.1.0",
     "babel-cli": "^6.23.0",
