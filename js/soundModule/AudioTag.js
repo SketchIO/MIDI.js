@@ -3,7 +3,7 @@ const debug = Debug('MIDI.js:legacyaudio')
 
 const MIDI = require('./MIDI')
 const GeneralMIDI = require('./GM')
-const SoundModule = require('./soundModules/SoundModule')
+const SoundModule = require('./SoundModule')
 const AudioTagSound = require('./AudioTagSound')
 const ObjectPool = require('./ObjectPool')
 

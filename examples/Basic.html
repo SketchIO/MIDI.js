@@ -21,18 +21,9 @@
 		<script>
 			window.onload = function () {
 				MIDI.startDebugging()
-				MIDI.autoselectFormat()
-
-				const controller = new MIDI.controllers.SoundBoard({
-					brush_stroke: {
-						note: 'B0',
-						requiresInteraction: true,
-						maxSimultaneous: 1
-					}
-				})
-				const soundModule = new MIDI.soundModules.WebAudio()
-				controller.connect(soundModule)
-				controller.setChannels(1)
+				MIDI.autoselect.sampleFormat()
+				MIDI.autoselect.soundModule()
+				MIDI.setChannels(16)
 
 				MIDI.onProgress = function (state, progress) {
 					console.log('Loading:', progress.toFixed(2), '%')
@@ -45,35 +36,35 @@
 
 				MIDI.volume = 127
 				MIDI.jobs.waitForActiveJobs().then(function () {
-					console.log('Ready to play!')
-					var time = MIDI.currentTime + 1
-
+					const pad = new MIDI.SoundPad({
+						brush_stroke: {
+							note: 'B0',
+							channelID: 0,
+							requiresInteraction: true,
+							maxSimultaneous: 1
+						}
+					})
 					let active = false
 					window.addEventListener('mousedown', function () {
-						controller.press('brush_stroke')
+						pad.press('brush_stroke')
 						active = true
 					})
 
 					let muteTimer
 					window.addEventListener('mousemove', function (e) {
-						controller.startInteractingWith('brush_stroke')
-						//						const noteInfo = MIDI.programs[0].notes[note]
+						pad.startInteractingWith('brush_stroke')
 						clearTimeout(muteTimer)
 						if (active) {
-							//							controller.channels[0].volume = 127
-							muteTimer = setTimeout(() => controller.stopInteractingWith('brush_stroke'), 300)
+							muteTimer = setTimeout(() => pad.stopInteractingWith('brush_stroke'), 300)
 						}
 					})
 
 					window.addEventListener('mouseup', function () {
-						//						controller.noteOff(0, note)
-						//						controller.channels[0].volume = 127
-						controller.release('brush_stroke')
+						pad.release('brush_stroke')
 						active = false
 					})
 				})
 			}
-
 		</script>
 	</body>
 </html>

@@ -2,7 +2,7 @@ const Debug = require('debug')
 const debug = Debug('MIDI.js:src/Channel.js')
 
 const MIDI = require('./MIDI')
-const actionStack = require('./actionStack')
+const action = require('./action')
 
 const Channel = module.exports = class Channel {
 	constructor(channelID) {
@@ -20,4 +20,4 @@ const Channel = module.exports = class Channel {
 	}
 }
 
-Channel.onConstruct = actionStack()
+Channel.onConstruct = action()

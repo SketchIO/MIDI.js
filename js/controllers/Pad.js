@@ -1,20 +1,19 @@
-const Controller = require('./Controller')
+const Controller = require('./controllers/Controller')
 const GM = require('../GM')
-const filter = require('../filter')
+const MIDI = require('../MIDI')
+const filter = require('../fn/filter')
 
-module.exports = class SoundBoard extends Controller {
+module.exports = class Pad {
 	constructor(button2note) {
-		super()
 		this.button2note = button2note
 	}
 
-
 	press(button) {
-		this.waitForDownstream().then(() => {
+		MIDI.waitForDownstream().then(() => {
 			const {note, channelID = 0, requiresInteraction = false, maxSimultaneous = Infinity} = this.button2note[button]
 			const noteID = GM.getNoteNumber(note)
 			const activeNotes = filter(this.downstream.notes, note => note.noteID === noteID)
-			this.noteOn(channelID, note)
+			MIDI.noteOn(channelID, note)
 			if (requiresInteraction) {
 				this.stopInteractingWith(button)
 			}
@@ -26,22 +25,22 @@ module.exports = class SoundBoard extends Controller {
 	}
 
 	release(button) {
-		this.waitForDownstream().then(() => {
+		MIDI.waitForDownstream().then(() => {
 			const {note, channelID = 0} = this.button2note[button]
 			const noteID = GM.getNoteNumber(note)
-			this.noteOff(channelID, noteID)
+			MIDI.noteOff(channelID, noteID)
 		})
 	}
 
 	startInteractingWith(button) {
 		const {channelID = 0} = this.button2note[button]
-		this.channels[channelID].volume = 127
+		MIDI.channels[channelID].volume = 127
 	}
 
 	stopInteractingWith(button) {
 		this.waitForDownstream().then(() => {
 			const {channelID = 0} = this.button2note[button]
-			this.channels[channelID].volume = 0
+			MIDI.channels[channelID].volume = 0
 		})
 	}
 }

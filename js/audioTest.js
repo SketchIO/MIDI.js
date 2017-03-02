@@ -17,7 +17,7 @@
  */
 
 const Debug = require('debug')
-const debug = Debug('MIDI.js:testAudio')
+const debug = Debug('MIDI.js:src/autoselect/audioTest')
 
 const dataURI = require('./dataURI')
 

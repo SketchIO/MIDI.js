@@ -2,7 +2,7 @@ const Debug = require('debug')
 const debug = Debug('MIDI.js:pending-jobs')
 const dump = require('./dump')
 
-module.exports = class PendingJobs {
+module.exports = class JobCollection {
 	constructor() {
 		this.jobs = new Set()
 		this.jobMetadata = new WeakMap()

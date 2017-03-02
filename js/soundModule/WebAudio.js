@@ -1,16 +1,16 @@
 const Debug = require('debug')
-const debug = Debug('MIDI.js:src/webaudio/WebAudio.js')
+const debug = Debug('MIDI.js:src/soundModule/WebAudio.js')
 
-const MIDI = require('./MIDI')
-const GM = require('./GM')
-const dataURI = require('./dataURI')
+const MIDI = require('../MIDI')
+const GM = require('../GM')
+const dataURI = require('../dataURI')
 
-const DummyNote = require('./Sound')
-const Note = require('./WebAudioNote')
+const DummyNote = require('../Sound')
+const Note = require('../WebAudioNote')
 
 const ChannelProxy = require('./Channel')
 const BufferDB = require('./webaudio/BufferDB')
-const SoundModule = require('./soundModules/SoundModule')
+const SoundModule = require('./SoundModule')
 const base64 = require('./base64')
 const AudioContext = require('./AudioContext')
 const filter = require('./filter')
@@ -119,7 +119,7 @@ module.exports = class WebAudio extends SoundModule {
 		} else if (dataURI.test(noteData)) {
 			job = AudioContext.decodeAudioData(dataURI.toBuffer(noteData))
 		} else {
-			job = MIDI.doFetch({
+			job = MIDI.fetch({
 				URL: noteData,
 				onProgress,
 				responseType: 'arraybuffer'

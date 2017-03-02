@@ -3,7 +3,7 @@ const debug = Debug('MIDI.js:js/WebAudioNote.js')
 
 const MIDI = require('./MIDI')
 const Sound = require('./Sound')
-const actionStack = require('./actionStack')
+const action = require('./action')
 const AudioContext = require('./AudioContext')
 
 function scale(value, a1, a2, b1, b2) {
@@ -19,7 +19,7 @@ module.exports = class WebAudioNote extends Sound {
 	constructor({soundModule, channel, ...soundArgs}) {
 		super(soundArgs)
 		this.soundModule = soundModule
-		this.onEnded = actionStack()
+		this.onEnded = action()
 		this.activeSounds = new Set()
 
 		this.volumeKnob = AudioContext.createGain()

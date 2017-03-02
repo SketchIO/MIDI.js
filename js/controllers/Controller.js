@@ -1,5 +1,5 @@
 const MISSING_DOWNSTREAM = 'A command was received but the controller cannot forward it. Please connect a downstream device.'
-const actionStack = require('../actionStack')
+const action = require('../action')
 const Channel = require('../Channel')
 
 const Controller = module.exports = class Controller {
@@ -52,4 +52,4 @@ const Controller = module.exports = class Controller {
 	}
 }
 
-Controller.onConstruct = actionStack()
+Controller.onConstruct = action()
