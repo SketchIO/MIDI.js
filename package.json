@@ -48,10 +48,12 @@
     "uglifyify": "^3.0.4"
   },
   "dependencies": {
-    "debug": "^2.6.1"
+    "debug": "^2.6.1",
+    "postinstall-build": "^2.1.3"
   },
   "scripts": {
     "build": "cross-env BABEL_ENV=commonjs babel src --out-dir lib",
+    "postinstall": "postinstall-build lib \"npm run build\"",
     "devserver": "budo js/MIDI.js:build/MIDI.js --live -- -t package-json-versionify -t [ babelify --presets [ es2015 stage-3 ] ] --standalone MIDI",
     "old.build": "mkdir -p build && browserify -t package-json-versionify -t [ babelify --presets [ es2015 stage-3 ] ] -t dedebug -t uglifyify -t rollupify --standalone MIDI js/MIDI.js > build/MIDI.js"
   },
