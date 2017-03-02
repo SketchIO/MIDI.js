@@ -2,7 +2,8 @@ const Debug = require('debug')
 const debug = Debug('MIDI.js:src/Channel.js')
 
 const MIDI = require('./MIDI')
-const action = require('./createAction')
+// const createAction = require('./createAction')
+import createAction from './createAction'
 
 const Channel = module.exports = class Channel {
 	constructor(channelID) {
@@ -20,4 +21,4 @@ const Channel = module.exports = class Channel {
 	}
 }
 
-Channel.onConstruct = action()
+Channel.onConstruct = createAction()

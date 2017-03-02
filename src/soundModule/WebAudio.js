@@ -1,9 +1,9 @@
 const Debug = require('debug')
 const debug = Debug('MIDI.js:src/soundModule/WebAudio.js')
 
-const MIDI = require('../MIDI')
-const GM = require('../GM')
 const dataURI = require('../dataURI')
+import MIDI from '../MIDI'
+import GM from '../GM'
 
 const Channel = require('../Channel')
 const createBufferMap = require('../createBufferMap')

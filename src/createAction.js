@@ -1,6 +1,6 @@
 const map = require('./fn/map')
 
-module.exports = function createAction() {
+export default function createAction() {
 	const actions = new Set()
 	function Action(action) {
 		actions.add(action)

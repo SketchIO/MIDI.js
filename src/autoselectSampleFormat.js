@@ -1,11 +1,11 @@
 const Debug = require('debug')
 const debug = Debug('MIDI.js/src/autoselect/autoselectSampleFormat.js')
 
-const MIDI = require('./MIDI')
 const audioTest = require('./audioTest')
+import MIDI from './MIDI'
 
 const AUDIO_FORMATS = ['mp3', 'ogg']
-module.exports = function autoselectSampleFormat() {
+export default function autoselectSampleFormat() {
 	debug('Autoselecting an sample format from the following choices: %j', AUDIO_FORMATS)
 	const autoselectOp = audioTest().then(function (supports) {
 		const format = AUDIO_FORMATS.find(function (format) {

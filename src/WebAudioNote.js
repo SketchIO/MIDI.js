@@ -1,9 +1,9 @@
 const Debug = require('debug')
 const debug = Debug('MIDI.js:js/WebAudioNote.js')
 
-const MIDI = require('./MIDI')
+import MIDI from './MIDI'
+import createAction from './createAction'
 const Sound = require('./Sound')
-const createAction = require('./createAction')
 const WebAudio = require('./soundModule/WebAudio')
 
 function scale(value, a1, a2, b1, b2) {

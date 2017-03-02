@@ -1,4 +1,4 @@
-const GM = require('./GM')
+import GM from './GM'
 
 module.exports = function createNoteArray() {
 	return new Proxy([], {

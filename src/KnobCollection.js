@@ -1,4 +1,5 @@
-const createAction = require('./createAction')
+// const createAction = require('./createAction')
+import createAction from './createAction'
 
 module.exports = class KnobCollection {
 	constructor() {

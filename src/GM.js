@@ -1,4 +1,4 @@
-const Debug = require('debug')
+import Debug from 'debug'
 const debug = Debug('MIDI.js:GeneralMIDI')
 
 const programDB = {
@@ -55,7 +55,7 @@ for (var n = A0; n <= C8; n++) {
 	noteDB.toName[n] = name;
 }
 
-module.exports = {
+export default {
 	getNoteName(value) {
 		if (value in noteDB.toNote) {
 			return value

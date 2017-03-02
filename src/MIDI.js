@@ -1,18 +1,18 @@
-const Debug = require('debug')
+import Debug from 'debug'
 const debug = Debug('MIDI.js:src/MIDI.js')
 
-const GM = require('./GM')
-
-const createAction = require('./createAction')
+import GM from './GM'
+import createAction from './createAction'
 
 const JobCollection = require('./JobCollection')
 const KnobCollection = require('./KnobCollection')
 const Program = require('./Program')
 const Channel = require('./Channel')
 
+const VERSION = require('../package.json').version
 const NOOP = Function;
 const MIDI = {
-	//VERSION: require('../package.json').version,
+	VERSION,
 
 	jobs: new JobCollection(),
 	knobs: new KnobCollection(),
@@ -99,7 +99,6 @@ const MIDI = {
 		return this.soundModule.noteOff(channelID, noteID, endTime)
 	}
 }
-module.exports = MIDI
 
 function isNumber(n) {
 	return !isNaN(parseFloat(n)) && isFinite(n);
@@ -145,7 +144,6 @@ Object.defineProperty(MIDI, 'currentTime', {
 	}
 })
 
-// TODO move to MIDI.browser.js
-if (console && console.log) {
-	console.log(`%c♥ MIDI.js ${MIDI.VERSION} ♥`, 'color: red;')
+export {
+	MIDI as default
 }

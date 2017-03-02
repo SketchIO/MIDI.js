@@ -1,8 +1,8 @@
-const GM = require('../GM')
-const MIDI = require('../MIDI')
 const filter = require('../fn/filter')
+import MIDI from '../MIDI'
+import GM from '../GM'
 
-module.exports = class Pad {
+export default class Pad {
 	constructor(button2note) {
 		this.button2note = button2note
 	}

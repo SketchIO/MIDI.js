@@ -1,5 +1,5 @@
 const createNoteArray = require('./createNoteArray')
-const GM = require('./GM')
+import GM from './GM'
 
 module.exports = class Program {
 	static wrap(rawProgram) {
