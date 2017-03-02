@@ -2,7 +2,7 @@ const Debug = require('debug')
 const debug = Debug('MIDI.js:src/Channel.js')
 
 const MIDI = require('./MIDI')
-const action = require('./action')
+const action = require('./createAction')
 
 const Channel = module.exports = class Channel {
 	constructor(channelID) {

@@ -1,4 +1,4 @@
-const NoteArray = require('./NoteArray')
+const createNoteArray = require('./createNoteArray')
 const GM = require('./GM')
 
 module.exports = class Program {
@@ -8,7 +8,7 @@ module.exports = class Program {
 
 	constructor(rawProgram) {
 		this.metadata = {}
-		this.notes = new NoteArray()
+		this.notes = createNoteArray()
 
 		for (const noteName in rawProgram) {
 			switch (noteName) {

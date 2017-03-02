@@ -7,6 +7,7 @@ generator/ruby/soundfont*
 !examples/soundfont/synth_drum*
 oggenc
 oggdec
+lib
 
 # NODE/NPM
 node_modules*

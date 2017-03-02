@@ -118,8 +118,6 @@ const WebAudio = module.exports = class WebAudio extends SoundModule {
 				onProgress,
 				responseType: 'arraybuffer'
 			}).then(function (event) {
-				console.log(arguments)
-				debugger
 				const response = new ArrayBuffer()
 				return WebAudio.context.decodeAudioData(response)
 			})

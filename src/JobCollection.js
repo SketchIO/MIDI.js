@@ -1,6 +1,7 @@
 const Debug = require('debug')
 const debug = Debug('MIDI.js:pending-jobs')
 const dump = require('./dump')
+const map = require('./fn/map')
 
 module.exports = class JobCollection {
 	constructor() {
@@ -39,7 +40,7 @@ module.exports = class JobCollection {
 
 	dump() {
 		const getRows = (jobSet) => {
-			return Array.from(jobSet.values()).map((job) => {
+			return map(jobSet, (job) => {
 				const {status, tags} = this.jobMetadata.get(job)
 				return {status, tags: tags.join(', ')}
 			})

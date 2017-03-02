@@ -11,8 +11,8 @@ const Program = require('./Program')
 const Channel = require('./Channel')
 
 const NOOP = Function;
-const MIDI = module.exports = {
-	VERSION: require('../package.json').version,
+const MIDI = {
+	//VERSION: require('../package.json').version,
 
 	jobs: new JobCollection(),
 	knobs: new KnobCollection(),
@@ -99,15 +99,7 @@ const MIDI = module.exports = {
 		return this.soundModule.noteOff(channelID, noteID, endTime)
 	}
 }
-
-MIDI.autoselect = {
-	sampleFormat: require('./autoselectSampleFormat'),
-	soundModule: require('./soundModule/autoselectSoundModule')
-}
-
-MIDI.controllers = {
-	Pad: require('./controllers/Pad')
-}
+module.exports = MIDI
 
 function isNumber(n) {
 	return !isNaN(parseFloat(n)) && isFinite(n);
