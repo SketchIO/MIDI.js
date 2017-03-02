@@ -1,5 +1,5 @@
 const Debug = require('debug')
-const debug = Debug('MIDI.js:root')
+const debug = Debug('MIDI.js:src/MIDI.js')
 
 const GM = require('./GM')
 
@@ -10,24 +10,28 @@ const KnobCollection = require('./KnobCollection')
 const Program = require('./Program')
 const Channel = require('./Channel')
 
-const AUTOSELECT = 'autoselect'
 const NOOP = Function;
-
 const MIDI = module.exports = {
 	VERSION: require('../package.json').version,
-	format: AUTOSELECT,
 
 	jobs: new JobCollection(),
 	knobs: new KnobCollection(),
 
+	sampleFormat: null,
 	soundModule: null,
+	connect(soundModule) {
+		// TODO Disconnect old sound modules here
+		this.soundModule = soundModule
+		this.soundModule.beConnectedTo(this)
+	},
+
 	programs: [],
 	channels: [],
 	setChannels(channelCount) {
 		for (let channelID = this.channels.length; channelID < channelCount; channelID += 1) {
-			channels.push(new Channel(channelID))
+			this.channels.push(new Channel(channelID))
 		}
-		channels.splice(channelCount)
+		this.channels.splice(channelCount)
 	},
 
 	onProgress: NOOP,
@@ -87,10 +91,22 @@ const MIDI = module.exports = {
 	},
 	onLoadProgram: createAction(),
 
-	autoselect: {
-		sampleFormat: require('./autoselectSampleFormat'),
-		soundModule: require('./soundModule/autoselectSoundModule')
+	noteOn(channelID, noteID, velocity = 127, startTime) {
+		return this.soundModule.noteOn(channelID, noteID, velocity, startTime)
+	},
+
+	noteOff(channelID, noteID, endTime) {
+		return this.soundModule.noteOff(channelID, noteID, endTime)
 	}
+}
+
+MIDI.autoselect = {
+	sampleFormat: require('./autoselectSampleFormat'),
+	soundModule: require('./soundModule/autoselectSoundModule')
+}
+
+MIDI.controllers = {
+	Pad: require('./controllers/Pad')
 }
 
 function isNumber(n) {
@@ -129,6 +145,12 @@ Channel.onConstruct(function (channel) {
 		comparator: isNumber,
 		defaultValue: 0
 	})
+})
+
+Object.defineProperty(MIDI, 'currentTime', {
+	get() {
+		return MIDI.soundModule.getCurrentTime()
+	}
 })
 
 // TODO move to MIDI.browser.js

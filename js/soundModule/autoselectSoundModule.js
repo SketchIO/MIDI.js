@@ -1,13 +1,19 @@
 const Debug = require('debug')
-const debug = Debug('MIDI.js/src/autoselect/autoselectSoundModule.js')
+const debug = Debug('MIDI.js:src/autoselect/autoselectSoundModule.js')
 
 const MIDI = require('../MIDI')
 const audioTest = require('../audioTest')
+const WebAudio = require('./WebAudio')
 
-const SOUND_MODULES = ['webaudio']
+// TODO update testAudio to allow sound modules to register themselves
+const SOUND_MODULES = ['audioapi']
 module.exports = function autoselectSoundModule() {
 	debug('Autoselecting a sound module from the following choices: %j', SOUND_MODULES)
 	const autoselectOp = audioTest().then(function (supports) {
+		// TODO a real test here, please
+
+		MIDI.connect(new WebAudio())
+
 		//const format = SOUND.find(function (format) {
 		//	return supports[format]
 		//})

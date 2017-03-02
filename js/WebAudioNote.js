@@ -3,8 +3,8 @@ const debug = Debug('MIDI.js:js/WebAudioNote.js')
 
 const MIDI = require('./MIDI')
 const Sound = require('./Sound')
-const action = require('./action')
-const AudioContext = require('./AudioContext')
+const createAction = require('./createAction')
+const WebAudio = require('./soundModule/WebAudio')
 
 function scale(value, a1, a2, b1, b2) {
 	return (value - a1) * ((b2 - b1) / (a2 - a1)) + b1
@@ -19,11 +19,11 @@ module.exports = class WebAudioNote extends Sound {
 	constructor({soundModule, channel, ...soundArgs}) {
 		super(soundArgs)
 		this.soundModule = soundModule
-		this.onEnded = action()
+		this.onEnded = createAction()
 		this.activeSounds = new Set()
 
-		this.volumeKnob = AudioContext.createGain()
-		this.volumeKnob.connect(AudioContext.destination)
+		this.volumeKnob = WebAudio.context.createGain()
+		this.volumeKnob.connect(WebAudio.context.destination)
 
 		this.channel = channel
 		for (let property of ['programID', 'mute', 'volume', 'detune']) {
@@ -62,10 +62,9 @@ module.exports = class WebAudioNote extends Sound {
 				break
 
 			case 'detune':
-				if (AudioContext.hasDetune) {
+				if (WebAudio.context.hasDetune) {
 					// -1200 to 1200 - value in cents [100 cents per semitone]
-					const detune = MIDI.detune + channel.detune
-					const clampedDetune = clamp(detune, -1200, 1200)
+					const clampedDetune = clamp(channel.detune, -1200, 1200)
 					debug('Detuning: %s', clampedDetune)
 					for (let sound of this.activeSounds) {
 						sound.detune.value = clampedDetune
@@ -79,8 +78,8 @@ module.exports = class WebAudioNote extends Sound {
 
 				this.scheduleFadeOut()
 
-				const sound = AudioContext.createBufferSource()
-				sound.volumeKnob = AudioContext.createGain()
+				const sound = WebAudio.context.createBufferSource()
+				sound.volumeKnob = WebAudio.context.createGain()
 				sound.buffer = audioBuffer
 
 				// TODO Will quickly ramping up the current sound's volume knob help

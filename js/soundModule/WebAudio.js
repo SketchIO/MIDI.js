@@ -5,24 +5,20 @@ const MIDI = require('../MIDI')
 const GM = require('../GM')
 const dataURI = require('../dataURI')
 
-const DummyNote = require('../Sound')
-const Note = require('../WebAudioNote')
-
-const ChannelProxy = require('./Channel')
-const BufferDB = require('./webaudio/BufferDB')
+const Channel = require('../Channel')
+const createBufferMap = require('../createBufferMap')
 const SoundModule = require('./SoundModule')
-const base64 = require('./base64')
-const AudioContext = require('./AudioContext')
-const filter = require('./filter')
+const base64 = require('../base64')
+const filter = require('../fn/filter')
 
-module.exports = class WebAudio extends SoundModule {
+const WebAudio = module.exports = class WebAudio extends SoundModule {
 	constructor() {
 		super()
-		this.buffers = BufferDB.create()
+		this.buffers = createBufferMap()
 
 		this.notes = new Set()
 		this.notes.selectSoundsRequiringUpdate = function (selector) {
-			if (selector instanceof ChannelProxy) {
+			if (selector instanceof Channel) {
 				return filter(this, function (task) {
 					return task.channelID === selector.channelID
 				})
@@ -34,13 +30,7 @@ module.exports = class WebAudio extends SoundModule {
 	beConnectedTo(upstream) {
 		super.beConnectedTo(upstream)
 
-		Object.defineProperty(MIDI, 'currentTime', {
-			get() {
-				return AudioContext.currentTime
-			}
-		})
-
-		this.onPropertyChange = MIDI.onPropertyChange((selector, property, newValue) => {
+		this.onChange = MIDI.knobs.onChange((selector, property, newValue) => {
 			debug('Property change detected! Updating tasks...')
 			this.notes.selectSoundsRequiringUpdate(selector).forEach(function (sound) {
 				sound.updateProperty(property)
@@ -68,6 +58,10 @@ module.exports = class WebAudio extends SoundModule {
 		return connectOp
 	}
 
+	getCurrentTime() {
+		return WebAudio.context.currentTime
+	}
+
 	noteOn(channelID, noteID, velocity = 127, startTime) {
 		noteID = GM.getNoteNumber(noteID)
 		startTime = startTime || MIDI.currentTime
@@ -75,7 +69,7 @@ module.exports = class WebAudio extends SoundModule {
 
 		const note = new Note({
 			soundModule: this,
-			channel: this.upstream.channels[channelID],
+			channel: MIDI.channels[channelID],
 			channelID, noteID, velocity, startTime
 		})
 
@@ -100,8 +94,8 @@ module.exports = class WebAudio extends SoundModule {
 
 	processProgram(programID, program, _, onProgress = MIDI.onProgress) {
 		const jobs = []
-		for(const [noteID, note] of program.notes.entries()) {
-			if(!note) continue
+		for (const [noteID, note] of program.notes.entries()) {
+			if (!note) continue
 			const {noteData} = note
 			debug('Processing note: %o', {noteID, noteData})
 			jobs.push(this.processNote(programID, noteID, noteData))
@@ -114,10 +108,10 @@ module.exports = class WebAudio extends SoundModule {
 
 	processNote(programID, noteID, noteData) {
 		let job
-		if(base64.test(noteData)) {
-			job = AudioContext.decodeAudioData(base64.toBuffer(noteData))
+		if (base64.test(noteData)) {
+			job = WebAudio.context.decodeAudioData(base64.toBuffer(noteData))
 		} else if (dataURI.test(noteData)) {
-			job = AudioContext.decodeAudioData(dataURI.toBuffer(noteData))
+			job = WebAudio.context.decodeAudioData(dataURI.toBuffer(noteData))
 		} else {
 			job = MIDI.fetch({
 				URL: noteData,
@@ -127,7 +121,7 @@ module.exports = class WebAudio extends SoundModule {
 				console.log(arguments)
 				debugger
 				const response = new ArrayBuffer()
-				return AudioContext.decodeAudioData(response)
+				return WebAudio.context.decodeAudioData(response)
 			})
 		}
 
@@ -135,3 +129,7 @@ module.exports = class WebAudio extends SoundModule {
 			this.buffers.set(programID, noteID, audioBuffer))
 	}
 }
+
+const createAudioContext = require('../createAudioContext')
+WebAudio.context = createAudioContext()
+const Note = require('../WebAudioNote')

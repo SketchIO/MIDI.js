@@ -36,7 +36,7 @@
 
 				MIDI.volume = 127
 				MIDI.jobs.waitForActiveJobs().then(function () {
-					const pad = new MIDI.SoundPad({
+					const pad = new MIDI.controllers.Pad({
 						brush_stroke: {
 							note: 'B0',
 							channelID: 0,

@@ -5,6 +5,10 @@ module.exports = class SoundModule {
 	disconnect() {
 	}
 
+	getCurrentTime() {
+		return -Infinity
+	}
+
 	noteOn(channelID, noteID, velocity, startTime) {
 	}
 
