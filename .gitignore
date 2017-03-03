@@ -11,6 +11,8 @@ oggdec
 # Artefact files
 lib
 !lib/.gitkeep
+dist
+!dist/.gitkeep
 
 # NODE/NPM
 node_modules*
