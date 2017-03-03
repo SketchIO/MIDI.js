@@ -1,6 +1,7 @@
-const Debug = require('debug')
-const debug = Debug('MIDI.js:dataURI')
-const base64 = require('./base64')
+import Debug from 'debug'
+const debug = Debug('MIDI.js:src/dataURI.js')
+
+import base64 from './base64'
 
 function MIMEType(URI) {
 	const [SIGIL, rest] = URI.split(':')
@@ -8,7 +9,7 @@ function MIMEType(URI) {
 	return type
 }
 
-module.exports = {
+export default {
 	test(URI) {
 		return URI.indexOf('data:') === 0
 	},
@@ -22,7 +23,7 @@ module.exports = {
 	toBuffer(URI) {
 		const [header, rawContents] = URI.split(',')
 		const [_, format] = header.split(';')
-		switch(format) {
+		switch (format) {
 			case 'base64':
 				debug('Converting a base64 data URI to an ArrayBuffer')
 				return base64.toBuffer(rawContents)

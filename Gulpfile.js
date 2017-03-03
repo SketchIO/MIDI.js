@@ -16,6 +16,7 @@ const rollupBabel = require('rollup-plugin-babel')
 const rollupStrip = require('rollup-plugin-strip')
 const rollupStripLogger = require('rollup-plugin-strip-logger')
 const rollupJSON = require('rollup-plugin-json')
+const rollupIgnore = require('rollup-plugin-ignore')
 
 const SRC = './src'
 const LIB = './lib'
@@ -60,13 +61,11 @@ gulp.task('build:forBrowser', () =>
 			moduleName: 'MIDI',
 			plugins: [
 				rollupJSON(),
+				rollupIgnore(['debug']),
 				rollupBabel({
 					plugins: [
 						"external-helpers"
 					]
-				}),
-				rollupCJS({
-
 				}),
 				rollupStrip({
 					functions: [
@@ -81,7 +80,7 @@ gulp.task('build:forBrowser', () =>
 			]
 		}))
 		.pipe(rename('MIDI.js'))
-		// .pipe(gulpUglify())
+		 //.pipe(gulpUglify())
 		.pipe(sourcemaps.write('.'))
 		.pipe(gulp.dest(DIST))
 		.pipe(size({

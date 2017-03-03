@@ -1,7 +1,7 @@
-const createNoteArray = require('./createNoteArray')
+import createNoteArray from './createNoteArray'
 import GM from './GM'
 
-module.exports = class Program {
+export default class Program {
 	static wrap(rawProgram) {
 		return new Program(rawProgram)
 	}

@@ -1,4 +1,4 @@
-module.exports = function createBufferMap() {
+export default function createBufferMap() {
 	return new Proxy(new Map(), {
 		get(target, property, receiver) {
 			switch (property) {

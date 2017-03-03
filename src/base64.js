@@ -10,7 +10,7 @@ function fromBase64ToBuffer(rawContents) {
 	return buffer
 }
 
-module.exports = {
+export default {
 	test(string) {
 		return BASE64ISH.test(string)
 	},

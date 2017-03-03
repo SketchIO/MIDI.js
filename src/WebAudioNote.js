@@ -1,10 +1,10 @@
-const Debug = require('debug')
+import Debug from 'debug'
 const debug = Debug('MIDI.js:js/WebAudioNote.js')
 
 import MIDI from './MIDI'
 import createAction from './createAction'
-const Sound = require('./Sound')
-const WebAudio = require('./soundModule/WebAudio')
+import Sound from './Sound'
+import WebAudio from './soundModule/WebAudio'
 
 function scale(value, a1, a2, b1, b2) {
 	return (value - a1) * ((b2 - b1) / (a2 - a1)) + b1
@@ -15,7 +15,7 @@ function clamp(value, a, b) {
 	return Math.min(b, Math.max(a, value))
 }
 
-module.exports = class WebAudioNote extends Sound {
+export default class WebAudioNote extends Sound {
 	constructor({soundModule, channel, ...soundArgs}) {
 		super(soundArgs)
 		this.soundModule = soundModule

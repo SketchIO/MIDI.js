@@ -1,11 +1,10 @@
-const Debug = require('debug')
+import Debug from 'debug'
 const debug = Debug('MIDI.js:src/Channel.js')
 
-const MIDI = require('./MIDI')
-// const createAction = require('./createAction')
+import MIDI from './MIDI'
 import createAction from './createAction'
 
-const Channel = module.exports = class Channel {
+export default class Channel {
 	constructor(channelID) {
 		this.channelID = channelID
 		Channel.onConstruct.trigger(this)

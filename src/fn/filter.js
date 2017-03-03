@@ -1,4 +1,4 @@
-module.exports = function filter(collection, filterAction) {
+export default function filter(collection, filterAction) {
 	let result = []
 	for(let [key, value] of collection.entries()) {
 		if(filterAction(value, key))

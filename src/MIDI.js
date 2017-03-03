@@ -4,15 +4,16 @@ const debug = Debug('MIDI.js:src/MIDI.js')
 import GM from './GM'
 import createAction from './createAction'
 
-const JobCollection = require('./JobCollection')
-const KnobCollection = require('./KnobCollection')
-const Program = require('./Program')
-const Channel = require('./Channel')
+import JobCollection from './JobCollection'
+import KnobCollection from './KnobCollection'
+import Program from './Program'
+import Channel from './Channel'
 
-const VERSION = require('../package.json').version
+import { version } from '../package.json'
+
 const NOOP = Function;
 const MIDI = {
-	VERSION,
+	VERSION: version,
 
 	jobs: new JobCollection(),
 	knobs: new KnobCollection(),

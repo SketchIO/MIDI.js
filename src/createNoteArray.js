@@ -1,6 +1,6 @@
 import GM from './GM'
 
-module.exports = function createNoteArray() {
+export default function createNoteArray() {
 	return new Proxy([], {
 		get(target, property) {
 			switch (property) {

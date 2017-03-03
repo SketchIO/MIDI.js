@@ -33,6 +33,7 @@
     "gulp-uglify": "^1.2.0",
     "rollup-plugin-babel": "^2.7.1",
     "rollup-plugin-commonjs": "^7.0.0",
+    "rollup-plugin-ignore": "^1.0.3",
     "rollup-plugin-json": "^2.1.0",
     "rollup-plugin-strip": "^1.1.1",
     "rollup-plugin-strip-logger": "^0.1.2"

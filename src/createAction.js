@@ -1,4 +1,4 @@
-const map = require('./fn/map')
+import map from './fn/map'
 
 export default function createAction() {
 	const actions = new Set()

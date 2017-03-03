@@ -1,4 +1,4 @@
-const filter = require('../fn/filter')
+import filter from '../fn/filter'
 import MIDI from '../MIDI'
 import GM from '../GM'
 

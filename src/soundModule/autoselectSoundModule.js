@@ -1,9 +1,9 @@
-const Debug = require('debug')
+import Debug from 'debug'
 const debug = Debug('MIDI.js:src/autoselect/autoselectSoundModule.js')
 
 import MIDI from '../MIDI'
-const audioTest = require('../audioTest')
-const WebAudio = require('./WebAudio')
+import audioTest from '../audioTest'
+import WebAudio from './WebAudio'
 
 // TODO update testAudio to allow sound modules to register themselves
 const SOUND_MODULES = ['audioapi']

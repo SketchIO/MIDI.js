@@ -1,7 +1,7 @@
-const Debug = require('debug')
+import Debug from 'debug'
 const debug = Debug('MIDI.js:src/webaudio/AudioContext.js')
 
-module.exports = function() {
+export default function() {
 	debug('Creating new audio context')
 	const context = new (window.AudioContext || window.webkitAudioContext)()
 

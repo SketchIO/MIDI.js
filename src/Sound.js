@@ -1,7 +1,7 @@
-const Debug = require('debug')
-const debug = Debug('MIDI.js:sound')
+import Debug from 'debug'
+const debug = Debug('MIDI.js:src/Sound.js')
 
-module.exports = class Sound {
+export default class Sound {
 	constructor({channelID, noteID, velocity, startTime}) {
 		this.channelID = channelID
 		this.noteID = noteID

@@ -1,7 +1,7 @@
 // const createAction = require('./createAction')
 import createAction from './createAction'
 
-module.exports = class KnobCollection {
+export default class KnobCollection {
 	constructor() {
 		this.descriptors = []
 		this.knownPropertyNames = new Set()

@@ -1,17 +1,18 @@
-const Debug = require('debug')
+import Debug from 'debug'
 const debug = Debug('MIDI.js:src/soundModule/WebAudio.js')
 
-const dataURI = require('../dataURI')
+import dataURI from '../dataURI'
 import MIDI from '../MIDI'
 import GM from '../GM'
 
-const Channel = require('../Channel')
-const createBufferMap = require('../createBufferMap')
-const SoundModule = require('./SoundModule')
-const base64 = require('../base64')
-const filter = require('../fn/filter')
+import Channel from '../Channel'
+import createBufferMap from '../createBufferMap'
+import SoundModule from './SoundModule'
+import base64 from '../base64'
+import filter from '../fn/filter'
+import Note from '../WebAudioNote'
 
-const WebAudio = module.exports = class WebAudio extends SoundModule {
+export default class WebAudio extends SoundModule {
 	constructor() {
 		super()
 		this.buffers = createBufferMap()
@@ -128,6 +129,5 @@ const WebAudio = module.exports = class WebAudio extends SoundModule {
 	}
 }
 
-const createAudioContext = require('../createAudioContext')
+import createAudioContext from '../createAudioContext'
 WebAudio.context = createAudioContext()
-const Note = require('../WebAudioNote')

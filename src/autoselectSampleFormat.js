@@ -1,7 +1,7 @@
-const Debug = require('debug')
+import Debug from 'debug'
 const debug = Debug('MIDI.js/src/autoselect/autoselectSampleFormat.js')
 
-const audioTest = require('./audioTest')
+import audioTest from './audioTest'
 import MIDI from './MIDI'
 
 const AUDIO_FORMATS = ['mp3', 'ogg']

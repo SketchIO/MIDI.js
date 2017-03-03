@@ -1,4 +1,4 @@
-module.exports = class SoundModule {
+export default class SoundModule {
 	beConnectedTo(object) {
 	}
 

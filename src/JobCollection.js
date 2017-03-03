@@ -1,9 +1,10 @@
-const Debug = require('debug')
-const debug = Debug('MIDI.js:pending-jobs')
-const dump = require('./dump')
-const map = require('./fn/map')
+import Debug from 'debug'
+const debug = Debug('MIDI.js:src/JobCollection.js')
 
-module.exports = class JobCollection {
+import dump from './dump'
+import map from './fn/map'
+
+export default class JobCollection {
 	constructor() {
 		this.jobs = new Set()
 		this.jobMetadata = new WeakMap()
