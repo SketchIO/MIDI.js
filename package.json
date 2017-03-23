@@ -1,6 +1,6 @@
 {
   "name": "midi",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "license": "MIT",
   "description": "Library to assist in creating HTML5 MIDI apps.",
   "author": "Michael Deal",

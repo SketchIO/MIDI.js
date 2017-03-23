@@ -94,6 +94,17 @@ export default class WebAudioNote extends Sound {
 					}
 				}
 
+				if (noteInfo && noteInfo.gainRamp) {
+					const volume = (MIDI.volume / 127) * (channel.volume / 127) * (this.velocity / 127)
+					debug('Adjusting volume: %j', {
+						'MIDI volume': MIDI.volume,
+						'Channel volume': channel.volume,
+						'Note velocity': this.velocity
+					})
+					sound.volumeKnob.gain.cancelScheduledValues(MIDI.currentTime)
+					sound.volumeKnob.gain.linearRampToValueAtTime(volume, MIDI.currentTime + (noteInfo.gainRamp || 0))
+				}
+
 				sound.connect(sound.volumeKnob)
 				sound.volumeKnob.connect(this.volumeKnob)
 
@@ -121,7 +132,12 @@ export default class WebAudioNote extends Sound {
 
 	scheduleFadeOut(time) {
 		debug('scheduleFadeOut called')
-		const RELEASE = 1
+		const channel = this.channel
+		const programID = channel.programID
+		const noteID = this.noteID
+		const noteInfo = MIDI.programs[programID].notes[noteID]
+		const RELEASE = noteInfo.gainRamp || 0
+
 		if (!time) {
 			time = MIDI.currentTime + RELEASE
 		}
@@ -133,9 +149,11 @@ export default class WebAudioNote extends Sound {
 
 		for (let sound of this.activeSounds) {
 			sound.loop = false
-			sound.volumeKnob.gain.cancelScheduledValues(MIDI.currentTime)
-			sound.volumeKnob.gain.linearRampToValueAtTime(this.volumeKnob.gain.value, time)
-			sound.volumeKnob.gain.linearRampToValueAtTime(0.5, time + RELEASE)
+			if (noteInfo && noteInfo.gainRamp) {
+				sound.volumeKnob.gain.cancelScheduledValues(MIDI.currentTime)
+				sound.volumeKnob.gain.linearRampToValueAtTime(this.volumeKnob.gain.value, time)
+				sound.volumeKnob.gain.linearRampToValueAtTime(0, time + RELEASE)
+			}
 			sound.stop(time + RELEASE)
 		}
 	}

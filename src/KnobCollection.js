@@ -10,7 +10,7 @@ export default class KnobCollection {
 	}
 
 	describe(...knobs) {
-		for (const descriptor of knobs) {
+		for (const descriptor of Array.from(knobs)) {
 			this.descriptors.push(descriptor)
 		}
 	}

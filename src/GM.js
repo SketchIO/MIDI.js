@@ -47,13 +47,15 @@ const noteDB = {
 	toNote: {},
 	toName: {}
 }
-
+// TODO serious issues here.
 for (var n = A0; n <= C8; n++) {
 	let octave = (n - 12) / 12 >> 0;
 	let name = number2key[n % 12] + octave;
 	noteDB.toNote[name] = n;
 	noteDB.toName[n] = name;
 }
+
+console.log(noteDB)
 
 export default {
 	getNoteName(value) {
@@ -70,6 +72,7 @@ export default {
 		} else if (value in noteDB.toNote) {
 			return noteDB.toNote[value]
 		}
+		return value
 	},
 
 	getProgram(program) {

@@ -9,7 +9,8 @@ import KnobCollection from './KnobCollection'
 import Program from './Program'
 import Channel from './Channel'
 
-import { version } from '../package.json'
+// import { version } from '../package.json'
+const version = '0.4.3'
 
 const NOOP = Function;
 const MIDI = {
