@@ -25,5 +25,16 @@ export default function() {
 		}
 	}
 
+	// Older browser fix
+	if(context.decodeAudioData.length > 1) {
+		debug('Wrapping callback-style decodeAudioData')
+		const originalDecode = context.decodeAudioData
+		context.decodeAudioData = function(buffer) {
+			return new Promise((resolve, reject) => {
+				originalDecode.call(context, buffer, resolve, reject)
+			})
+		}
+	}
+
 	return context
 }

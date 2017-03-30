@@ -2,6 +2,9 @@ import filter from '../fn/filter'
 import MIDI from '../MIDI'
 import GM from '../GM'
 
+import Debug from 'debug'
+const debug = Debug('MIDI.js:src/controllers/Pad.js')
+
 export default class Pad {
 	constructor(button2note) {
 		this.button2note = button2note
@@ -19,8 +22,10 @@ export default class Pad {
 						this.stopInteractingWith(button)
 					}
 
-					if (activeNotes.length > maxSimultaneous)
+					if (activeNotes.length > maxSimultaneous) {
+						debug('There are too many simulteneous sounds (%s); canceling the first sound.', activeNotes.length)
 						activeNotes[0].cancelImmediately()
+					}
 				}
 			}
 		}
@@ -28,6 +33,7 @@ export default class Pad {
 
 	release(button) {
 		if (button in this.button2note) {
+			debug('Releasing button %s', button)
 			const {note, channelID = 0} = this.button2note[button]
 			const noteID = GM.getNoteNumber(note)
 			MIDI.noteOff(channelID, noteID)
@@ -36,6 +42,7 @@ export default class Pad {
 
 	startInteractingWith(button) {
 		if (button in this.button2note) {
+			debug('Starting interaction with button %s', button)
 			const {channelID = 0} = this.button2note[button]
 			MIDI.channels[channelID].volume = 127
 		}
@@ -43,6 +50,7 @@ export default class Pad {
 
 	stopInteractingWith(button) {
 		if (button in this.button2note) {
+			debug('Ending interaction with button %s', button)
 			const {channelID = 0} = this.button2note[button]
 			MIDI.channels[channelID].volume = 0
 		}

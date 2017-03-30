@@ -11,3 +11,7 @@ import Pad from './controllers/Pad'
 export const controllers = {
 	Pad
 }
+
+import MIDI from './MIDI'
+import WebAudio from './soundModule/WebAudio'
+MIDI.connect(new WebAudio())

@@ -55,7 +55,8 @@ for (var n = A0; n <= C8; n++) {
 	noteDB.toName[n] = name;
 }
 
-console.log(noteDB)
+// console.log(noteDB)
+
 
 export default {
 	getNoteName(value) {

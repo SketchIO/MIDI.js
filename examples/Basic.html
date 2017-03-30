@@ -30,38 +30,44 @@
 
 				MIDI.loadProgram({
 					programID: 0,
-					program: './soundfont/soundDB.json'
+					program: './soundfont/acoustic_grand_piano2-mp3.json'
 				})
 
 				MIDI.volume = 127
-				MIDI.jobs.waitForActiveJobs().then(function () {
-					const pad = new MIDI.controllers.Pad({
-						brush_stroke: {
-							note: 'B0',
-							channelID: 0,
-							requiresInteraction: true,
-							maxSimultaneous: 1
-						}
-					})
-					let active = false
-					window.addEventListener('mousedown', function () {
-						pad.press('brush_stroke')
-						active = true
-					})
+//				MIDI.jobs.waitForActiveJobs().then(function () {
+//					const pad = new MIDI.controllers.Pad({
+//						brush_stroke: {
+//							note: 'B0',
+//							channelID: 0,
+//							requiresInteraction: true,
+//							maxSimultaneous: 1
+//						}
+//					})
+//					let active = false
+//					window.addEventListener('mousedown', function () {
+//						pad.press('brush_stroke')
+//						active = true
+//					})
+//
+//					let muteTimer
+//					window.addEventListener('mousemove', function (e) {
+//						pad.startInteractingWith('brush_stroke')
+//						clearTimeout(muteTimer)
+//						if (active) {
+//							muteTimer = setTimeout(() => pad.stopInteractingWith('brush_stroke'), 300)
+//						}
+//					})
+//
+//					window.addEventListener('mouseup', function () {
+//						pad.release('brush_stroke')
+//						active = false
+//					})
+//				})
 
-					let muteTimer
-					window.addEventListener('mousemove', function (e) {
-						pad.startInteractingWith('brush_stroke')
-						clearTimeout(muteTimer)
-						if (active) {
-							muteTimer = setTimeout(() => pad.stopInteractingWith('brush_stroke'), 300)
-						}
-					})
-
-					window.addEventListener('mouseup', function () {
-						pad.release('brush_stroke')
-						active = false
-					})
+				MIDI.jobs.waitForActiveJobs().then(() => {
+					console.log('Ready!')
+				}).catch(() => {
+					console.log('Failed')
 				})
 			}
 		</script>

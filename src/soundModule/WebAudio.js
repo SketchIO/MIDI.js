@@ -112,7 +112,8 @@ export default class WebAudio extends SoundModule {
 		if (base64.test(noteData)) {
 			job = WebAudio.context.decodeAudioData(base64.toBuffer(noteData))
 		} else if (dataURI.test(noteData)) {
-			job = WebAudio.context.decodeAudioData(dataURI.toBuffer(noteData))
+			const audioBuffer = dataURI.toBuffer(noteData)
+			job = WebAudio.context.decodeAudioData(audioBuffer)
 		} else {
 			job = MIDI.fetch({
 				URL: noteData,
@@ -131,3 +132,4 @@ export default class WebAudio extends SoundModule {
 
 import createAudioContext from '../createAudioContext'
 WebAudio.context = createAudioContext()
+window.ctx = WebAudio.context

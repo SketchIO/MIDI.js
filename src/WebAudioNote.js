@@ -1,5 +1,5 @@
 import Debug from 'debug'
-const debug = Debug('MIDI.js:js/WebAudioNote.js')
+const debug = Debug('MIDI.js:src/WebAudioNote.js')
 
 import MIDI from './MIDI'
 import createAction from './createAction'
@@ -154,7 +154,11 @@ export default class WebAudioNote extends Sound {
 				sound.volumeKnob.gain.linearRampToValueAtTime(this.volumeKnob.gain.value, time)
 				sound.volumeKnob.gain.linearRampToValueAtTime(0, time + RELEASE)
 			}
-			sound.stop(time + RELEASE)
+			try {
+				sound.stop(time + RELEASE)
+			} catch(error) {
+				debug(error)
+			}
 		}
 	}
 

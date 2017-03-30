@@ -18,8 +18,8 @@ export default class JobCollection {
 			this.jobs.delete(job)
 			this.completedJobs.add(job)
 			this.jobMetadata.get(job).status = 'resolved'
-		}).catch(() => {
-			this.jobMetadata.get(job).status = 'rejected'
+		}).catch(error => {
+			this.jobMetadata.get(job).status = `rejected: ${error}`
 		})
 	}
 

@@ -25,7 +25,7 @@ export default function autoselectSoundModule() {
 		//
 		//debug('Using the "%s" sample format.', format)
 		//MIDI.format = format
-		console.log("Alrighty then")
+		// console.log("Alrighty then")
 	})
 	MIDI.jobs.track(autoselectOp, 'autoselect a sound module')
 	return autoselectOp
