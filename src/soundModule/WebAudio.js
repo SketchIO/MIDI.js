@@ -31,6 +31,8 @@ export default class WebAudio extends SoundModule {
 	beConnectedTo(upstream) {
 		super.beConnectedTo(upstream)
 
+		upstream.audioContext = WebAudio.context
+
 		this.onChange = MIDI.knobs.onChange((selector, property, newValue) => {
 			debug('Property change detected! Updating tasks...')
 			this.notes.selectSoundsRequiringUpdate(selector).forEach(function (sound) {
@@ -132,4 +134,3 @@ export default class WebAudio extends SoundModule {
 
 import createAudioContext from '../createAudioContext'
 WebAudio.context = createAudioContext()
-window.ctx = WebAudio.context
