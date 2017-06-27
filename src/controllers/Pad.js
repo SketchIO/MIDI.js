@@ -11,6 +11,7 @@ export default class Pad {
 	}
 
 	press(button) {
+		if(!MIDI.soundModule) return
 		if (button in this.button2note) {
 			const {note, channelID = 0, requiresInteraction = false, maxSimultaneous = 1} = this.button2note[button]
 			if (note) {
@@ -32,6 +33,7 @@ export default class Pad {
 	}
 
 	release(button) {
+		if(!MIDI.soundModule) return
 		if (button in this.button2note) {
 			debug('Releasing button %s', button)
 			const {note, channelID = 0} = this.button2note[button]
@@ -41,6 +43,7 @@ export default class Pad {
 	}
 
 	startInteractingWith(button) {
+		if(!MIDI.soundModule) return
 		if (button in this.button2note) {
 			debug('Starting interaction with button %s', button)
 			const {channelID = 0} = this.button2note[button]
@@ -49,6 +52,7 @@ export default class Pad {
 	}
 
 	stopInteractingWith(button) {
+		if(!MIDI.soundModule) return
 		if (button in this.button2note) {
 			debug('Ending interaction with button %s', button)
 			const {channelID = 0} = this.button2note[button]

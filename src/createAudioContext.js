@@ -3,7 +3,10 @@ const debug = Debug('MIDI.js:src/webaudio/AudioContext.js')
 
 export default function() {
 	debug('Creating new audio context')
-	const context = new (window.AudioContext || window.webkitAudioContext)()
+	const ContextConstructor = window.AudioContext || window.webkitAudioContext
+	if(!ContextConstructor) return
+
+	const context = new ContextConstructor()
 
 	try {
 		const buffer = context.createBuffer(1, 1, 44100);

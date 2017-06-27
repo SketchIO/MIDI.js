@@ -106,7 +106,7 @@ function isNumber(n) {
 	return !isNaN(parseFloat(n)) && isFinite(n);
 }
 
-MIDI.knobs.describe({
+MIDI.knobs.describe([{
 		property: 'volume',
 		comparator: isNumber,
 		defaultValue: 100
@@ -124,7 +124,8 @@ MIDI.knobs.describe({
 			return isNumber(n) && n >= -1200 && n <= 1200
 		},
 		defaultValue: 0.0
-	})
+	}
+])
 
 MIDI.knobs.add(MIDI, 'MIDI', 'mute')
 MIDI.knobs.add(MIDI, 'MIDI', 'volume')
