@@ -11,63 +11,43 @@
 		<!-- utils -->
 		<script src="../inc/dom/request_script.js"></script>
 		<script src="../inc/dom/request_xhr.js"></script>
-		<script src="../inc/EventEmitter.js"></script>
+		<!--<script src="../inc/EventEmitter.js"></script>-->
 
+		<script src="https://polyfill.io/v2/polyfill.js"></script>
 		<script src="../dist/MIDI.js"></script>
 
 	</head>
 	<body>
+		<pre id="jobs"></pre>
 		<script>
 			window.onload = function () {
-				MIDI.startDebugging()
-				MIDI.autoselect.sampleFormat()
-				MIDI.autoselect.soundModule()
-				MIDI.setChannels(16)
+				MIDI.autoconnect()
+//				MIDI.WebAudio.connect()
+//				MIDI.AudioTag.connect()
+				MIDI.volume = 127
+				MIDI.channels = 1
+				MIDI.channels[0].volume = 100
 
-				MIDI.onProgress = function (state, progress) {
-					console.log('Loading:', progress.toFixed(2), '%')
-				}
-
-				MIDI.loadProgram({
+				MIDI.programs.load({
 					programID: 0,
-					program: './soundfont/acoustic_grand_piano2-mp3.json'
+//					program: './soundfont/acoustic_grand_piano2-mp3.json'
+					program: "./soundfont/synth_drum-mp3.json"
 				})
 
-				MIDI.volume = 127
-//				MIDI.jobs.waitForActiveJobs().then(function () {
-//					const pad = new MIDI.controllers.Pad({
-//						brush_stroke: {
-//							note: 'B0',
-//							channelID: 0,
-//							requiresInteraction: true,
-//							maxSimultaneous: 1
-//						}
-//					})
-//					let active = false
-//					window.addEventListener('mousedown', function () {
-//						pad.press('brush_stroke')
-//						active = true
-//					})
-//
-//					let muteTimer
-//					window.addEventListener('mousemove', function (e) {
-//						pad.startInteractingWith('brush_stroke')
-//						clearTimeout(muteTimer)
-//						if (active) {
-//							muteTimer = setTimeout(() => pad.stopInteractingWith('brush_stroke'), 300)
-//						}
-//					})
-//
-//					window.addEventListener('mouseup', function () {
-//						pad.release('brush_stroke')
-//						active = false
-//					})
-//				})
-
-				MIDI.jobs.waitForActiveJobs().then(() => {
+				MIDI.jobs.waitForActiveJobs().then(function() {
 					console.log('Ready!')
-				}).catch(() => {
-					console.log('Failed')
+					for(let i = 0; i < 8; i += 1) {
+						try {
+							console.log("Playing", "A" + i)
+							MIDI.noteOn(0, "A" + i, 127, 1 + (i / 8))
+							MIDI.noteOff(0, "A" + i, 5 + (i / 8))
+						} catch(error) {
+							console.log(error)
+						}
+					}
+				}).catch(function(error) {
+					console.log('Failed:', error)
+					document.body.style.backgroundColor = "red"
 				})
 			}
 		</script>
