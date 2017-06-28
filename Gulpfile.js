@@ -10,6 +10,7 @@ const rename = require('gulp-rename')
 const plumber = require('gulp-plumber')
 const connect = require('gulp-connect')
 const gulpUglify = require('gulp-uglify')
+const debug = require('gulp-debug')
 
 const rollupCJS = require('rollup-plugin-commonjs')
 const rollupBabel = require('rollup-plugin-babel')
@@ -17,6 +18,7 @@ const rollupStrip = require('rollup-plugin-strip')
 const rollupStripLogger = require('rollup-plugin-strip-logger')
 const rollupJSON = require('rollup-plugin-json')
 const rollupIgnore = require('rollup-plugin-ignore')
+const rollupNR = require('rollup-plugin-node-resolve')
 
 const SRC = './src'
 const LIB = './lib'
@@ -52,6 +54,7 @@ gulp.task('rebuild:forNode', ['build:forNode'], () =>
 
 gulp.task('build:forBrowser', () =>
 	gulp.src([path.join(SRC, ALL_FILES), './package.json'])
+		.pipe(debug({title: "build:forBrowser"}))
 		.pipe(plumber())
 		.pipe(sourcemaps.init({}))
 		.pipe(rollup({
@@ -62,6 +65,7 @@ gulp.task('build:forBrowser', () =>
 			plugins: [
 				rollupJSON(),
 				rollupIgnore(['debug']),
+				rollupNR(),
 				rollupBabel({
 					plugins: [
 						"external-helpers"
@@ -80,7 +84,7 @@ gulp.task('build:forBrowser', () =>
 			]
 		}))
 		.pipe(rename('MIDI.js'))
-		 //.pipe(gulpUglify())
+		// .pipe(gulpUglify())
 		.pipe(sourcemaps.write('.'))
 		.pipe(gulp.dest(DIST))
 		.pipe(size({
