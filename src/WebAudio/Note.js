@@ -1,10 +1,9 @@
-import Debug from 'debug'
-const debug = Debug('MIDI.js:src/WebAudioNote.js')
+import Debug from "debug"
+const debug = Debug("MIDI.js:src/WebAudioNote.js")
 
-import MIDI from './MIDI'
-import createAction from './createAction'
-import Sound from './Sound'
-import WebAudio from './soundModule/WebAudio'
+import {MIDI} from "../MIDI"
+import createAction from "../createAction"
+import {WebAudio} from "./WebAudio"
 
 function scale(value, a1, a2, b1, b2) {
 	return (value - a1) * ((b2 - b1) / (a2 - a1)) + b1
@@ -15,18 +14,21 @@ function clamp(value, a, b) {
 	return Math.min(b, Math.max(a, value))
 }
 
-export default class WebAudioNote extends Sound {
-	constructor({soundModule, channel, ...soundArgs}) {
-		super(soundArgs)
-		this.soundModule = soundModule
+export class Note {
+	constructor({channelID, noteID, velocity, startTime}) {
+		this.channelID = channelID
+		this.noteID = noteID
+		this.velocity = velocity
+		this.startTime = startTime
+		this.isEnding = false
+
 		this.onEnded = createAction()
 		this.activeSounds = new Set()
 
 		this.volumeKnob = WebAudio.context.createGain()
 		this.volumeKnob.connect(WebAudio.context.destination)
 
-		this.channel = channel
-		for (let property of ['programID', 'mute', 'volume', 'detune']) {
+		for (let property of ["programID", "mute", "volume", "detune"]) {
 			this.updateProperty(property)
 		}
 	}
@@ -38,43 +40,43 @@ export default class WebAudioNote extends Sound {
 	}
 
 	updateProperty(property) {
-		const channel = this.channel
+		const channel = MIDI.channels[this.channelID]
 		const programID = channel.programID
 		const noteID = this.noteID
 		const noteInfo = MIDI.programs[programID].notes[noteID]
 
 
 		switch (property) {
-			case 'mute':
+			case "mute":
 				if (MIDI.mute || channel.mute)
 					this.volumeKnob.gain.value = 0.0
 				break
 
-			case 'volume':
+			case "volume":
 				const volume = (MIDI.volume / 127) * (channel.volume / 127) * (this.velocity / 127)
-				debug('Adjusting volume: %j', {
-					'MIDI volume': MIDI.volume,
-					'Channel volume': channel.volume,
-					'Note velocity': this.velocity
+				debug("Adjusting volume: %j", {
+					"MIDI volume": MIDI.volume,
+					"Channel volume": channel.volume,
+					"Note velocity": this.velocity,
 				})
 				this.volumeKnob.gain.cancelScheduledValues(MIDI.currentTime)
 				this.volumeKnob.gain.linearRampToValueAtTime(volume, MIDI.currentTime + (noteInfo.gainRamp || 0))
 				break
 
-			case 'detune':
+			case "detune":
 				if (WebAudio.context.hasDetune) {
 					// -1200 to 1200 - value in cents [100 cents per semitone]
 					const clampedDetune = clamp(channel.detune, -1200, 1200)
-					debug('Detuning: %s', clampedDetune)
+					debug("Detuning: %s", clampedDetune)
 					for (let sound of this.activeSounds) {
 						sound.detune.value = clampedDetune
 					}
 				}
 				break
 
-			case 'programID':
-				debug('Using audio buffer: %j', {programID, noteID})
-				const audioBuffer = this.soundModule.buffers.get(programID, noteID)
+			case "programID":
+				debug("Using audio buffer: %j", {programID, noteID})
+				const audioBuffer = WebAudio.buffers.get(programID, noteID)
 
 				this.scheduleFadeOut()
 
@@ -86,9 +88,9 @@ export default class WebAudioNote extends Sound {
 				// with popping? TODO Add attack, decay, and sustain, loopStart and
 				// loopEnd!
 
-				for (const property of ['loopStart', 'loopEnd']) {
+				for (const property of ["loopStart", "loopEnd"]) {
 					if (property in noteInfo) {
-						debug('Setting note property: %s => %s', property, noteInfo[property])
+						debug("Setting note property: %s => %s", property, noteInfo[property])
 						sound[property] = noteInfo[property]
 						sound.loop = true
 					}
@@ -96,10 +98,10 @@ export default class WebAudioNote extends Sound {
 
 				if (noteInfo && noteInfo.gainRamp) {
 					const volume = (MIDI.volume / 127) * (channel.volume / 127) * (this.velocity / 127)
-					debug('Adjusting volume: %j', {
-						'MIDI volume': MIDI.volume,
-						'Channel volume': channel.volume,
-						'Note velocity': this.velocity
+					debug("Adjusting volume: %j", {
+						"MIDI volume": MIDI.volume,
+						"Channel volume": channel.volume,
+						"Note velocity": this.velocity,
 					})
 					sound.volumeKnob.gain.cancelScheduledValues(MIDI.currentTime)
 					sound.volumeKnob.gain.linearRampToValueAtTime(volume, MIDI.currentTime + (noteInfo.gainRamp || 0))
@@ -115,7 +117,7 @@ export default class WebAudioNote extends Sound {
 
 				MIDI.jobs.track(new Promise((resolve, reject) => {
 					sound.onended = () => {
-						debug('Sound finished: %o', {sound})
+						debug("Sound finished: %o", {sound})
 						this.activeSounds.delete(sound)
 						this.handleSoundEnd()
 						resolve()
@@ -126,13 +128,13 @@ export default class WebAudioNote extends Sound {
 				break
 
 			default:
-				debug('Unhandled property update: %s', property)
+				debug("Unhandled property update: %s", property)
 		}
 	}
 
 	scheduleFadeOut(time) {
-		debug('scheduleFadeOut called')
-		const channel = this.channel
+		debug("scheduleFadeOut called")
+		const channel = MIDI.channels[this.channelID]
 		const programID = channel.programID
 		const noteID = this.noteID
 		const noteInfo = MIDI.programs[programID].notes[noteID]
@@ -156,7 +158,7 @@ export default class WebAudioNote extends Sound {
 			}
 			try {
 				sound.stop(time + RELEASE)
-			} catch(error) {
+			} catch (error) {
 				debug(error)
 			}
 		}
@@ -164,7 +166,7 @@ export default class WebAudioNote extends Sound {
 
 	handleSoundEnd() {
 		if (!this.activeSounds.size) {
-			debug('There are no more active sounds for this note. Ending.')
+			debug("There are no more active sounds for this note. Ending.")
 			this.onEnded.trigger(this)
 		}
 	}
