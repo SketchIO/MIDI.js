@@ -19,3 +19,16 @@ export default {
 		return fromBase64ToBuffer(string)
 	}
 }
+//
+// export const Base64 = {
+// 	test: BASE64ISH.test.bind(BASE64ISH),
+// 	toBuffer(string) {
+// 		const binaryData = atob(rawContents)
+// 		const buffer = new ArrayBuffer(binaryData.length)
+// 		const uintView = new Uint8Array(buffer)
+// 		for (let i = 0; i < binaryData.length; i++) {
+// 			uintView[i] = binaryData.charCodeAt(i)
+// 		}
+// 		return buffer
+// 	}
+// }

@@ -1,5 +1,5 @@
 // const createAction = require('./createAction')
-import createAction from './createAction'
+import createAction from "./createAction"
 
 export default class KnobCollection {
 	constructor() {
@@ -21,7 +21,7 @@ export default class KnobCollection {
 				return (d.property === descriptor) ? d : memo
 			})
 			if (!descriptor)
-				throw new Error('Unknown property descriptor')
+				throw new Error("Unknown property descriptor")
 		}
 
 		let bucket = this.propertyTable[objectID]
@@ -44,7 +44,7 @@ export default class KnobCollection {
 					bucket[property] = newValue
 					knobs.onChange.trigger(this, property, newValue)
 				}
-			}
+			},
 		})
 	}
 

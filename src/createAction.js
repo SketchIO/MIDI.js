@@ -1,4 +1,4 @@
-import map from './fn/map'
+import {map} from "./fn"
 
 export default function createAction() {
 	const actions = new Set()

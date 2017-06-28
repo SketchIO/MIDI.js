@@ -2,7 +2,7 @@ import Debug from 'debug'
 const debug = Debug('MIDI.js:src/JobCollection.js')
 
 import dump from './dump'
-import map from './fn/map'
+import {map} from "./fn"
 
 export default class JobCollection {
 	constructor() {
