@@ -1,4 +1,4 @@
-import {map} from "./fn"
+import {forEach} from "./fn"
 
 export default function createAction() {
 	const actions = new Set()
@@ -12,9 +12,8 @@ export default function createAction() {
 		}
 	}
 
-	Action.trigger = function() {
-		const args = Array.from(arguments)
-		return map(actions, action => action(...args))
+	Action.trigger = function(...args) {
+		forEach(actions, action => action(...args))
 	}
 
 	return Action

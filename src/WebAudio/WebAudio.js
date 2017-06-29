@@ -5,7 +5,7 @@ import dataURI from "../dataURI"
 import {MIDI} from "../MIDI"
 
 import base64 from "../base64"
-import {Note} from "./Note"
+import {SoundWA} from "./SoundWA"
 
 import {Collections} from "../Collections"
 
@@ -17,22 +17,6 @@ import {Hooray} from "../Hooray"
 import {filter} from "../fn"
 
 const WEBAUDIO_UNDERSTANDS_TIMEOUT = 250
-
-class Sound {
-	constructor({channelID, noteID, velocity, startTime}) {
-		this.channelID = channelID
-		this.noteID = noteID
-		this.velocity = velocity
-		this.startTime = startTime
-	}
-}
-
-class SoundWA extends Sound {
-	constructor({buffer, ...args}) {
-		super(args)
-		this.buffer = buffer
-	}
-}
 
 export const WebAudio = {
 	context: AudioContext.get(),
@@ -86,19 +70,15 @@ export const WebAudio = {
 		startTime = startTime || MIDI.currentTime
 		debug("Playing note: %j", {channelID, noteID, velocity, startTime})
 
-		let sound = WebAudio.sounds.get(channelID, noteID)
-		if (sound) {
-			sound.cancelImmediately()
-		}
+		const sound = WebAudio.sounds.get(channelID, noteID)
+		if (sound) sound.stop()
 
-		sound = new Note({
+		WebAudio.sounds.set(channelID, noteID, new SoundWA({
 			channelID,
 			noteID,
 			velocity,
 			startTime,
-		})
-
-		WebAudio.sounds.set(channelID, noteID, sound)
+		}))
 	},
 
 	noteOff(channelID, noteID, endTime) {
@@ -112,3 +92,5 @@ export const WebAudio = {
 		return WebAudio.context.currentTime
 	},
 }
+
+window.WebAudio = WebAudio

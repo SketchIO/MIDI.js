@@ -1,6 +1,7 @@
 import {MIDI} from "../MIDI"
 import {Channel} from "../Channel"
 import {WebAudio} from "./WebAudio"
+import {forEach} from "../fn"
 
 let action
 export const PropertyChanger = {

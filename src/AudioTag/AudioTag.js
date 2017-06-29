@@ -30,22 +30,7 @@ export const PropertyChanger = {
 	},
 }
 
-class Sound {
-	constructor({channelID, noteID, velocity, startTime}) {
-		this.channelID = channelID
-		this.noteID = noteID
-		this.velocity = velocity
-		this.startTime = startTime
-	}
-
-	get channel() {
-		return MIDI.channels[this.channelID]
-	}
-
-	get note() {
-		return MIDI.note(this.channelID, this.noteID)
-	}
-}
+import {Sound} from "../Sound"
 
 class SoundAT extends Sound {
 	constructor(args) {

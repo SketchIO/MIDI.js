@@ -2,6 +2,7 @@ import createAction from "./createAction"
 import {Hooray} from "./Hooray"
 
 const data = Hooray.create()
+window.data = data
 export const knobs = {
 	factories: [],
 	onChange: createAction(),
@@ -29,7 +30,7 @@ export const knobs = {
 
 			set(newValue) {
 				const currentValue = bucket[property]
-				if (currentValue != newValue && comparator(newValue)) {
+				if (currentValue !== newValue && comparator(newValue)) {
 					bucket[property] = newValue
 					knobs.onChange.trigger(this, property, newValue)
 				}

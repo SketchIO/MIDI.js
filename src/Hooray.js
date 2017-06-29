@@ -1,6 +1,6 @@
 export const Hooray = {
 	create() {
-		const hooray = {}
+		const hooray = []
 
 		Object.defineProperties(hooray, {
 			get: {
@@ -25,9 +25,10 @@ export const Hooray = {
 		const key = rest.slice(-1)[0]
 
 		let current = collection
-		for (let chunk in path) {
+		for(let i = 0; i < path.length; i++) {
+			const chunk = path[i]
 			if (!current[chunk])
-				current[chunk] = Hooray.create()
+				current[chunk] = []
 			current = current[chunk]
 		}
 
@@ -40,9 +41,10 @@ export const Hooray = {
 		const value = rest.slice(-1)[0]
 
 		let current = collection
-		for (let chunk in path) {
+		for(let i = 0; i < path.length; i++) {
+			const chunk = path[i]
 			if (!current[chunk])
-				current[chunk] = Hooray.create()
+				current[chunk] = []
 			current = current[chunk]
 		}
 		current[key] = value

@@ -3,19 +3,19 @@ export function wrap(object, property, fn) {
 	object[property] = fn.bind(object, originalFn)
 }
 
-function forEach(collection, fn) {
+export function forEach(collection, fn) {
 	if (!Array.isArray(collection))
 		collection = Array.from(collection)
 
 	for (let i = 0; i < collection.length; i++) {
-		fn(i, collection[i])
+		fn(collection[i])
 	}
 }
 
 export function filter(collection, filterAction) {
 	let result = []
-	forEach(collection, function (key, value) {
-		if (filterAction(value, key))
+	forEach(collection, function (value) {
+		if (filterAction(value))
 			result.push(value)
 	})
 	return result
@@ -23,8 +23,8 @@ export function filter(collection, filterAction) {
 
 export function map(collection, action) {
 	let result = []
-	forEach(collection, function (key, value) {
-		result.push(action(value, key))
+	forEach(collection, function (value) {
+		result.push(action(value))
 	})
 	return result
 }

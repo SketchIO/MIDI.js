@@ -25,8 +25,7 @@ export class Pad {
 	release(button) {
 		if (button in this.button2note) {
 			const {note, channelID = 0} = this.button2note[button]
-			const noteID = GM.note[note].noteID
-			MIDI.noteOff(channelID, noteID)
+			MIDI.noteOff(channelID, note)
 		}
 	}
 
