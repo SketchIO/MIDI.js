@@ -83,7 +83,7 @@ export function support() {
 		Object.assign(results, {
 			best() {
 				return results[results.length - 1]
-			}
+			},
 		})
 
 		return results

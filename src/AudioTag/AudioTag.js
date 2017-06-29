@@ -3,72 +3,32 @@ import {ObjectPool} from "./ObjectPool"
 import {Collections} from "../Collections"
 import dataURI from "../dataURI"
 
+import {Hooray} from "../Hooray"
+import {FastTimer} from "./FastTimer"
+import {clamp, scale} from "../fn"
+import {Channel} from "../Channel"
 
-const FastTimer = {
-	timers: [],
-	running: false,
-
-	attach() {
-		FastTimer.running = true
-		FastTimer.tick()
-		// addEventListener("message", FastTimer.tick)
-		// FastTimer.tick()
+let action
+export const PropertyChanger = {
+	startUpdating() {
+		action = MIDI.knobs.onChange((selector, property, newValue) => {
+			if (selector instanceof Channel) {
+				const bank = AudioTag.sounds.get(selector.channelID)
+				if (bank)
+					bank.forEach(sound => sound.updateProperty(property))
+			} else {
+				AudioTag.sounds.forEach(bank =>
+					bank.forEach(sound =>
+						sound.updateProperty(property)))
+			}
+		})
 	},
 
-	detach() {
-		// removeEventListener("message", FastTimer.tick)
-		FastTimer.running = false
-	},
-
-	tick() {
-		for (let i = 0; i < FastTimer.timers.length; i++) {
-			FastTimer.timers[i]()
-		}
-		if(FastTimer.running) {
-			setTimeout(FastTimer.tick, 0)
-		}
-		// postMessage("", location.origin)
-	},
-
-	start(fn) {
-		FastTimer.timers.push(fn)
-		return {
-			stop() {
-				FastTimer.stop(fn)
-			},
-		}
-	},
-
-	stop(fn) {
-		const i = FastTimer.timers.indexOf(fn)
-		if (i > -1)
-			FastTimer.splice(i, 1)
+	stopUpdating() {
+		if (action)
+			action.cancel()
 	},
 }
-
-window.FastTimer = FastTimer
-
-const PropertyChanger = {
-	start() {
-	},
-
-	stop() {
-	},
-
-	update(object, property) {
-	},
-}
-
-//		/** volume **/
-//		_apply.volume = function (source) {
-//			var channel = source._channel;
-//			if (MIDI.mute || channel.mute) {
-//				source.volume = 0.0;
-//			} else {
-//				var volume = MIDI.volume * channel.volume * source._volume;
-//				source.volume = Math.min(1.0, Math.max(-1.0, volume * 2.0));
-//			}
-//		};
 
 class Sound {
 	constructor({channelID, noteID, velocity, startTime}) {
@@ -77,81 +37,85 @@ class Sound {
 		this.velocity = velocity
 		this.startTime = startTime
 	}
-}
 
-class SoundWA extends Sound {
-	constructor({buffer, ...args}) {
-		super(args)
-		this.buffer = buffer
+	get channel() {
+		return MIDI.channels[this.channelID]
+	}
+
+	get note() {
+		return MIDI.note(this.channelID, this.noteID)
 	}
 }
 
 class SoundAT extends Sound {
-	constructor({tag, ...args}) {
+	constructor(args) {
 		super(args)
-		this.tag = tag
+		this.tag = AudioTag.tags.obtain()
+		this.tag.src = this.note.noteData
+		this.tag.play()
+	}
+
+	updateProperty(property) {
+		switch (property) {
+			case "mute":
+				if (MIDI.mute || this.channel.mute)
+					this.tag.volume = 0
+				break
+			case "volume":
+				const volume =
+					(MIDI.volume / 127) *
+					(this.channel.volume / 127) *
+					(this.velocity / 127)
+				this.tag.volume = volume
+		}
+	}
+
+	stop() {
+		this.tag.pause()
+		AudioTag.tags.release(this.tag)
 	}
 }
 
-const sounds = new Collections.mapCK()
+const sounds = Hooray.create()
 
 FastTimer.start(function () {
-	sounds.forEach(sound => {
-		const {channelID, noteID, startTime, tag} = sound
-		const channel = MIDI.channels[channelID]
-		const programID = channel.programID
-		const program = MIDI.programs[programID]
-		const note = program.notes[noteID]
-		// const note = MIDI.note(channelID, noteID)
-		// const note = MIDI.channels[channelID].program.notes[noteID]
-
-		if (note.loopEnd) {
-			const now = tag.currentTime
-			if (now >= note.loopEnd) {
-				const loopStart = note.loopStart || 0
-				tag.currentTime = loopStart
+	sounds.forEach(soundbank => {
+		soundbank.forEach(sound => {
+			const {note, startTime, tag} = sound
+			if (note.loopEnd) {
+				const now = tag.currentTime
+				if (now >= note.loopEnd) {
+					const loopStart = note.loopStart || 0
+					tag.currentTime = loopStart
+				}
 			}
-		}
-
+		})
 	})
 })
 
-FastTimer.attach()
+function startSound(channelID, noteID, velocity) {
+	stopSound(channelID, noteID)
 
-function startChannel(channelID, noteID, velocity) {
 	const note = MIDI.note(channelID, noteID)
 	if (note) {
-		try {
-			const tag = AudioTag.tags.obtain()
-			PropertyChanger.update(tag, "volume")
-			tag.src = note.noteData
-			tag.play()
-			sounds.set(channelID, noteID, new SoundAT({
-				channelID, noteID, velocity, startTime: MIDI.currentTime,
-				tag,
-			}))
-		} catch (error) {
-			console.error(error)
-		}
+		sounds.set(channelID, noteID, new SoundAT({
+			channelID,
+			noteID,
+			velocity,
+			startTime: MIDI.currentTime,
+		}))
 	}
 }
 
-function stopChannel(channelID, noteID) {
-	const channel = MIDI.channels[channelID]
-	const programID = channel.programID
-
-	const sound = sounds.get(programID, noteID)
-	if (sound) {
-		sound.tag.pause()
-		AudioTag.tags.release(sound.tag)
-
-	}
+function stopSound(channelID, noteID) {
+	const sound = sounds.get(channelID, noteID)
+	if (sound) sound.stop()
 }
 
 export const AudioTag = {
 	timeouts: [],
 	sounds,
-	tags: new ObjectPool(100, () => new Audio()),
+	tags: new ObjectPool(10, () => new Audio()),
 
 	isSupported() {
 		return window.Audio
@@ -175,7 +139,8 @@ export const AudioTag = {
 
 			audio.addEventListener("error", function onError(err) {
 				if (URL.createObjectURL && !audio.testedBlobURL) {
-					// workaround for https://code.google.com/p/chromium/issues/detail?id=544988&q=Cr%3DInternals-Media&colspec=ID%20Pri%20M%20Stars%20ReleaseBlock%20Cr%20Status%20Owner%20Summary%20OS%20Modified
+					// workaround for
+					// https://code.google.com/p/chromium/issues/detail?id=544988&q=Cr%3DInternals-Media&colspec=ID%20Pri%20M%20Stars%20ReleaseBlock%20Cr%20Status%20Owner%20Summary%20OS%20Modified
 					audio.testedBlobURL = true
 					audio.src = URL.createObjectURL(dataURI.toBlob(src))
 				} else {
@@ -198,6 +163,8 @@ export const AudioTag = {
 		if (!AudioTag.isSupported()) throw new Error("SoundModule cannot be connected")
 		if (MIDI.SoundModule) MIDI.SoundModule.disconnect()
 		MIDI.SoundModule = AudioTag
+		FastTimer.attach()
+		PropertyChanger.startUpdating()
 	},
 
 	disconnect() {
@@ -210,25 +177,27 @@ export const AudioTag = {
 		})
 
 		AudioTags.forceReset()
+		FastTimer.detach()
+		PropertyChanger.stopUpdating()
 	},
 
 	noteOn(channelID, noteID, velocity, startTime = 0) {
 		if (startTime) {
 			AudioTag.timeouts.push(setTimeout(function () {
-				startChannel(channelID, noteID, velocity)
+				startSound(channelID, noteID, velocity)
 			}, startTime * 1000))
 		} else {
-			startChannel(channelID, noteID, velocity)
+			startSound(channelID, noteID, velocity)
 		}
 	},
 
 	noteOff(channelID, noteID, endTime = 0) {
 		if (endTime) {
 			AudioTag.timeouts.push(setTimeout(function () {
-				stopChannel(channelID, noteID)
+				stopSound(channelID, noteID)
 			}, endTime * 1000))
 		} else {
-			stopChannel(channelID, noteID)
+			stopSound(channelID, noteID)
 		}
 	},
 

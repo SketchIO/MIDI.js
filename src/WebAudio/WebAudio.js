@@ -4,7 +4,6 @@ const debug = Debug("MIDI.js:src/soundModule/WebAudio.js")
 import dataURI from "../dataURI"
 import {MIDI} from "../MIDI"
 
-import Channel from "../Channel"
 import base64 from "../base64"
 import {Note} from "./Note"
 
@@ -12,14 +11,32 @@ import {Collections} from "../Collections"
 
 import {AudioContext} from "./AudioContext"
 import {Buffers} from "./Buffers"
+import {PropertyChanger} from "./PropertyChanger"
+import {Hooray} from "../Hooray"
 
 import {filter} from "../fn"
 
 const WEBAUDIO_UNDERSTANDS_TIMEOUT = 250
 
+class Sound {
+	constructor({channelID, noteID, velocity, startTime}) {
+		this.channelID = channelID
+		this.noteID = noteID
+		this.velocity = velocity
+		this.startTime = startTime
+	}
+}
+
+class SoundWA extends Sound {
+	constructor({buffer, ...args}) {
+		super(args)
+		this.buffer = buffer
+	}
+}
+
 export const WebAudio = {
 	context: AudioContext.get(),
-	notes: Collections.noteset(),
+	sounds: Hooray.create(),
 	buffers: Buffers,
 
 	isSupported() {
@@ -31,9 +48,10 @@ export const WebAudio = {
 			const ctx = AudioContext.get()
 			ctx.decodeAudioData(base64.toBuffer(sample)).then(resolve).catch(reject)
 
-			// Workaround for https://code.google.com/p/chromium/issues/detail?id=424174
+			// Workaround for
+			// https://code.google.com/p/chromium/issues/detail?id=424174
 			setTimeout(reject, WEBAUDIO_UNDERSTANDS_TIMEOUT)
-		});
+		})
 	},
 
 	connect() {
@@ -41,6 +59,7 @@ export const WebAudio = {
 		if (MIDI.SoundModule) MIDI.SoundModule.disconnect()
 		MIDI.SoundModule = WebAudio
 		Buffers.startProcessing()
+		PropertyChanger.startUpdating()
 
 		const connectJob = new Promise(function (resolve, reject) {
 			// TODO Use globals instead and shim.
@@ -60,28 +79,33 @@ export const WebAudio = {
 
 	disconnect() {
 		Buffers.stopProcessing()
+		PropertyChanger.stopUpdating()
 	},
 
 	noteOn(channelID, noteID, velocity = 127, startTime) {
 		startTime = startTime || MIDI.currentTime
 		debug("Playing note: %j", {channelID, noteID, velocity, startTime})
 
-		const note = new Note({channelID, noteID, velocity, startTime})
-		note.onEnded(() => {
-			WebAudio.notes.delete(note)
+		let sound = WebAudio.sounds.get(channelID, noteID)
+		if (sound) {
+			sound.cancelImmediately()
+		}
+
+		sound = new Note({
+			channelID,
+			noteID,
+			velocity,
+			startTime,
 		})
 
-		WebAudio.notes.add(note)
-		return note
+		WebAudio.sounds.set(channelID, noteID, sound)
 	},
 
 	noteOff(channelID, noteID, endTime) {
 		endTime = endTime || MIDI.currentTime
-		filter(WebAudio.notes, function (note) {
-			return note.channelID === channelID && note.noteID === noteID
-		}).forEach(function (note) {
-			note.scheduleFadeOut(endTime)
-		})
+		const sound = WebAudio.sounds.get(channelID, noteID)
+		if (sound)
+			sound.scheduleFadeOut(endTime)
 	},
 
 	currentTime() {

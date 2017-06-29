@@ -1,3 +1,4 @@
+import {MIDI} from "./MIDI"
 import {GM} from "./GM"
 import createAction from "./createAction"
 
@@ -10,7 +11,6 @@ Programs.load = function ({programID = 0, program, onProgress = MIDI.onProgress}
 			switch (typeof program) {
 				case "string":
 					const programURL = program.replace(/%FORMAT/g, MIDI.format)
-					debug("Fetching \"%s\"", programURL)
 					return MIDI.fetch({
 						URL: programURL,
 						onProgress,
@@ -25,7 +25,7 @@ Programs.load = function ({programID = 0, program, onProgress = MIDI.onProgress}
 				default:
 					const wrappedProgram = new Program(program)
 					MIDI.programs[programID] = wrappedProgram
-					MIDI.onLoadProgram.trigger(programID, wrappedProgram, program)
+					Programs.onLoad.trigger(programID, wrappedProgram, program)
 					resolve({programID, program: wrappedProgram, programData: program})
 			}
 		})
@@ -49,16 +49,27 @@ export class Program {
 				default:
 					const noteID = GM.note[key].noteID
 					const note = pdata[key]
-					switch (typeof note) {
-						case "string":
-							this.notes[noteID] = {
-								noteData: note,
-							}
-							break
-						case "object":
-							this.notes[noteID] = note
-					}
+					this.notes[noteID] = new Note(noteID, note)
 			}
 		}
+	}
+}
+
+export class Note {
+	constructor(noteID, note) {
+		if(typeof note === "string") {
+			note = {
+				noteData: note
+			}
+		}
+
+		this.noteID = noteID
+		const {gainRamp, ...data} = note
+		Object.assign(this, data)
+		this.note = note
+	}
+
+	get gainRamp() {
+		return this.note.gainRamp || 0
 	}
 }

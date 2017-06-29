@@ -4,15 +4,8 @@ const debug = Debug("MIDI.js:src/WebAudioNote.js")
 import {MIDI} from "../MIDI"
 import createAction from "../createAction"
 import {WebAudio} from "./WebAudio"
-
-function scale(value, a1, a2, b1, b2) {
-	return (value - a1) * ((b2 - b1) / (a2 - a1)) + b1
-}
-
-function clamp(value, a, b) {
-	[a, b] = a < b ? [a, b] : [b, a]
-	return Math.min(b, Math.max(a, value))
-}
+import {Buffers} from "./Buffers"
+import {scale, clamp} from "../fn"
 
 export class Note {
 	constructor({channelID, noteID, velocity, startTime}) {
@@ -41,18 +34,18 @@ export class Note {
 
 	updateProperty(property) {
 		const channel = MIDI.channels[this.channelID]
+		const note = MIDI.note(this.channelID, this.noteID)
 		const programID = channel.programID
 		const noteID = this.noteID
 		const noteInfo = MIDI.programs[programID].notes[noteID]
 
-
-		switch (property) {
-			case "mute":
+		const actions = {
+			mute() {
 				if (MIDI.mute || channel.mute)
 					this.volumeKnob.gain.value = 0.0
-				break
+			},
 
-			case "volume":
+			volume() {
 				const volume = (MIDI.volume / 127) * (channel.volume / 127) * (this.velocity / 127)
 				debug("Adjusting volume: %j", {
 					"MIDI volume": MIDI.volume,
@@ -61,9 +54,9 @@ export class Note {
 				})
 				this.volumeKnob.gain.cancelScheduledValues(MIDI.currentTime)
 				this.volumeKnob.gain.linearRampToValueAtTime(volume, MIDI.currentTime + (noteInfo.gainRamp || 0))
-				break
+			},
 
-			case "detune":
+			detune() {
 				if (WebAudio.context.hasDetune) {
 					// -1200 to 1200 - value in cents [100 cents per semitone]
 					const clampedDetune = clamp(channel.detune, -1200, 1200)
@@ -72,11 +65,11 @@ export class Note {
 						sound.detune.value = clampedDetune
 					}
 				}
-				break
+			},
 
-			case "programID":
+			programID() {
 				debug("Using audio buffer: %j", {programID, noteID})
-				const audioBuffer = WebAudio.buffers.get(programID, noteID)
+				const audioBuffer = Buffers.get(programID, noteID)
 
 				this.scheduleFadeOut()
 
@@ -125,10 +118,12 @@ export class Note {
 				}))
 
 				this.activeSounds.add(sound)
-				break
+			}
+		}
 
-			default:
-				debug("Unhandled property update: %s", property)
+		const action = actions[property]
+		if(action) {
+			action.call(this)
 		}
 	}
 

@@ -1,27 +1,33 @@
-import Debug from "debug"
-const debug = Debug("MIDI.js:src/MIDI.js")
-
 import createAction from "./createAction"
 import JobCollection from "./JobCollection"
-import KnobCollection from "./KnobCollection"
+import {knobs} from "./knobs"
 
 import {GM} from "./GM"
 import {Channel} from "./Channel"
 import {Programs} from "./Programs"
 import {isNumber} from "./fn"
 
-// import { version } from '../package.json'
-const version = "0.4.3"
+import {support} from "./support"
 
+import {AudioTag} from "./AudioTag"
+import {WebAudio} from "./WebAudio"
+import {WebMIDI} from "./WebMIDI"
 
+import {Pad} from "./Pad"
+
+// import {version} from "../package.json"
+const version = "0.0.44"
+
+let SoundModule
 export const MIDI = {
 	VERSION: version,
 	format: null,
 
 	jobs: new JobCollection(),
-	knobs: new KnobCollection(),
+	knobs,
 	programs: Programs,
 
+	Pad,
 
 	/**
 	 * Get note data
@@ -48,7 +54,7 @@ export const MIDI = {
 	},
 
 	autoconnect() {
-		const supportJob = MIDI.support()
+		const supportJob = support()
 		MIDI.jobs.track(supportJob)
 		return supportJob.then(bundle => {
 			return bundle.best().SoundModule.connect()
@@ -71,38 +77,19 @@ export const MIDI = {
 		return fetchOp
 	},
 
-	startDebugging() {
-		if (localStorage) {
-			const SIGIL = "MIDI.js:*"
-			if (localStorage.debug != SIGIL) {
-				localStorage.debug = SIGIL
-				window.location = window.location
-			}
-		}
+	get SoundModule() {
+		// TODO Print a tip if a SoundModule isn't connected?
+		// if (!SoundModule)
+		// 	console.info("Hey, a SoundModule isn't connected! Try MIDI.autoconnect() or MIDI.WebAudio.connect()")
+		return SoundModule
+	},
+
+	set SoundModule(sm) {
+		if (SoundModule)
+			SoundModule.disconnect()
+		SoundModule = sm
 	},
 }
-
-
-MIDI.knobs.describe([{
-	property: "volume",
-	comparator: isNumber,
-	defaultValue: 100,
-},
-	{
-		property: "mute",
-		comparator(b) {
-			return !!b
-		},
-		defaultValue: false,
-	},
-	{
-		property: "detune",
-		comparator(n) {
-			return isNumber(n) && n >= -1200 && n <= 1200
-		},
-		defaultValue: 0.0,
-	},
-])
 
 MIDI.knobs.add(MIDI, "MIDI", "mute")
 MIDI.knobs.add(MIDI, "MIDI", "volume")
@@ -111,9 +98,6 @@ const channels = []
 Object.defineProperty(MIDI, "channels", {
 	get: () => channels,
 	set(channelCount) {
-		for (let channelID = channels.length; channelID < channelCount; channelID++) {
-			channels.push(new Channel(channelID))
-		}
-		channels.splice(channelCount)
-	},
-})
+		for (let channelID = channels.length; channelID < channelCount;
+channelID++) { channels.push(new Channel(channelID)) }
+channels.splice(channelCount) }, })

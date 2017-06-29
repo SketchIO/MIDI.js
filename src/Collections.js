@@ -24,19 +24,4 @@ export const Collections = {
 
 		return mapCK
 	},
-
-	noteset() {
-		const noteset = new Set()
-
-		noteset.matching = function (selector) {
-			if (selector instanceof Channel) {
-				return filter(this, function (note) {
-					return note.channelID === selector.channelID
-				})
-			}
-			return this
-		}
-
-		return noteset
-	}
 }
