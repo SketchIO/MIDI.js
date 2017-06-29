@@ -35,10 +35,7 @@ export class SoundWA extends Sound {
 		this.buffer.start(this.startTime, offset)
 
 		MIDI.jobs.track(new Promise((resolve, reject) => {
-			buffer.onended = () => {
-				debug("Sound finished: %o", {buffer})
-				resolve()
-			}
+			this.buffer.onended = resolve
 		}))
 
 		for (let property of ["mute", "volume", "detune"]) {
