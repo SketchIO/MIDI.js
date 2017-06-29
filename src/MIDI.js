@@ -16,7 +16,7 @@ import {WebMIDI} from "./WebMIDI"
 import {Pad} from "./Pad"
 
 // import {version} from "../package.json"
-const version = "0.0.44"
+const version = "0.5.0"
 
 let SoundModule
 export const MIDI = {
