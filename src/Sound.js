@@ -15,4 +15,11 @@ export class Sound {
 	get note() {
 		return MIDI.note(this.channelID, this.noteID)
 	}
+
+	stop() {
+	}
+
+	dump() {
+		console.table(this)
+	}
 }

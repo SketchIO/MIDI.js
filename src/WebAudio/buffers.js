@@ -1,16 +1,20 @@
 import dataURI from "../dataURI"
-import base64 from "../base64"
+import {Base64} from "../Base64"
 import {WebAudio} from "./WebAudio"
 import {MIDI} from "../MIDI"
-import {Collections} from "../Collections"
-const debug = require("debug")("MIDI.js:src/WebAudio/Process.js")
+import {Hooray} from "../Hooray"
+import {ezDefine} from "../ezDefine"
 
 let eventResponder
-export const Buffers = Collections.mapCK()
-Object.assign(Buffers, {
+export const buffers = Hooray.create({
+	name: "WebAudio buffers"
+})
+
+
+ezDefine(buffers, {
 	startProcessing() {
-		MIDI.programs.map((program, programID) => Buffers.processProgram(programID, program))
-		eventResponder = MIDI.programs.onLoad(Buffers.processProgram)
+		MIDI.programs.map((program, programID) => buffers.processProgram(programID, program))
+		eventResponder = MIDI.programs.onLoad(buffers.processProgram)
 	},
 
 	stopProcessing() {
@@ -22,8 +26,7 @@ Object.assign(Buffers, {
 		for (const [noteID, note] of program.notes.entries()) {
 			if (!note) continue
 			const {noteData} = note
-			debug("Processing note: %o", {noteID, noteData})
-			jobs.push(Buffers.note(programID, noteID, noteData))
+			jobs.push(buffers.processNote(programID, noteID, noteData))
 		}
 
 		const processJob = Promise.all(jobs)
@@ -31,10 +34,10 @@ Object.assign(Buffers, {
 		return processJob
 	},
 
-	note(programID, noteID, noteData) {
+	processNote(programID, noteID, noteData) {
 		let job
-		if (base64.test(noteData)) {
-			job = WebAudio.context.decodeAudioData(base64.toBuffer(noteData))
+		if (Base64.test(noteData)) {
+			job = WebAudio.context.decodeAudioData(Base64.toBuffer(noteData))
 		} else if (dataURI.test(noteData)) {
 			const audioBuffer = dataURI.toBuffer(noteData)
 			job = WebAudio.context.decodeAudioData(audioBuffer)
@@ -51,7 +54,7 @@ Object.assign(Buffers, {
 
 		return (
 			job
-				.then(audioBuffer => Buffers.set(programID, noteID, audioBuffer))
+				.then(audioBuffer => buffers.set(programID, noteID, audioBuffer))
 				.catch(error => console.log(error)))
 	},
 })

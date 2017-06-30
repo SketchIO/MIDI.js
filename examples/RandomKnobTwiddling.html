@@ -21,9 +21,9 @@
 		<pre id="jobs"></pre>
 		<script>
 			window.onload = function () {
-//				MIDI.autoconnect()
-				MIDI.AudioTag.connect()
-				MIDI.volume = 127
+				MIDI.autoconnect()
+//				MIDI.AudioTag.connect()
+				MIDI.volume = 20
 				MIDI.channels = 1
 				MIDI.channels[0].volume = 100
 
@@ -35,6 +35,7 @@
 				setInterval(function() {
 					const sin = Math.sin(MIDI.currentTime) * 63 + 64
 					MIDI.channels[0].volume = sin
+					MIDI.channels[0].detune = sin / 127 * 2400 - 1200
 				}, 100)
 
 				MIDI.jobs.waitForActiveJobs().then(function() {
@@ -42,7 +43,7 @@
 					for(let noteID = 0; noteID < 127; noteID += 1) {
 						try {
 							const note = MIDI.GM.note[noteID]
-							console.log("Playing", note.keys[0] + note.octave)
+//							console.log("Playing", note.keys[0] + note.octave)
 							MIDI.noteOn(0, noteID, 127, 1 + (noteID / 8))
 							MIDI.noteOff(0, noteID, 5 + (noteID / 8))
 						} catch(error) {

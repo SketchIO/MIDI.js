@@ -1,11 +1,11 @@
 import {MIDI} from "./MIDI"
-import {GM} from "./GM"
-import createAction from "./createAction"
+import {GM} from "../GM"
+import createAction from "../createAction"
 
-export const Programs = []
+export const programs = []
 
-Programs.load = function ({programID = 0, program, onProgress = MIDI.onProgress}) {
-	const isReady = MIDI.jobs.waitForActiveJobs({except: "load program"})
+programs.load = function ({programID = 0, program, onProgress = MIDI.onProgress}) {
+	const isReady = MIDI.jobs.wait({except: "load program"})
 	const loadOp = new Promise(function (resolve, reject) {
 		isReady.then(function () {
 			switch (typeof program) {
@@ -18,14 +18,15 @@ Programs.load = function ({programID = 0, program, onProgress = MIDI.onProgress}
 					}).then(function (programData) {
 						const program = new Program(programData)
 						MIDI.programs[programID] = program
-						Programs.onLoad.trigger(programID, program, programData)
+						programs.onLoad.trigger(programID, program, programData)
 						resolve({programID, program, programData})
 					}).catch(reject)
 				case "object":
 				default:
 					const wrappedProgram = new Program(program)
+					console.log("PROGRAM", wrappedProgram)
 					MIDI.programs[programID] = wrappedProgram
-					Programs.onLoad.trigger(programID, wrappedProgram, program)
+					programs.onLoad.trigger(programID, wrappedProgram, program)
 					resolve({programID, program: wrappedProgram, programData: program})
 			}
 		})
@@ -34,7 +35,7 @@ Programs.load = function ({programID = 0, program, onProgress = MIDI.onProgress}
 	return loadOp
 }
 
-Programs.onLoad = createAction()
+programs.onLoad = createAction()
 
 export class Program {
 	constructor(pdata) {
@@ -49,7 +50,8 @@ export class Program {
 				default:
 					const noteID = GM.note[key].noteID
 					const note = pdata[key]
-					this.notes[noteID] = new Note(noteID, note)
+					const noteObj = new Note(noteID, note)
+					this.notes[noteID] = noteObj
 			}
 		}
 	}

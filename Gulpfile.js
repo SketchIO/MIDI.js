@@ -25,7 +25,7 @@ const LIB = './lib'
 const DIST = './dist'
 
 const ALL_FILES = '**/*.js'
-const BROWSER_ENTRYPOINT = 'index.browser.js'
+const BROWSER_ENTRYPOINT = 'browser.js'
 
 gulp.task('build:forNode', () =>
 	gulp.src(path.join(SRC, ALL_FILES))

@@ -1,7 +1,7 @@
 import Debug from "debug"
 const debug = Debug("MIDI.js:src/dataURI.js")
 
-import base64 from "./base64"
+import {Base64} from "./Base64"
 
 function MIMEType(URI) {
 	const [SIGIL, rest] = URI.split(":")
@@ -37,7 +37,7 @@ export default {
 		switch (format) {
 			case "base64":
 				debug("Converting a base64 data URI to an ArrayBuffer")
-				return base64.toBuffer(rawContents)
+				return Base64.toBuffer(rawContents)
 			default:
 				debug("The data URI format \"%s\" is not supported!", format)
 				throw new Error("The data URI format \"" + format + "\" is not supported!")

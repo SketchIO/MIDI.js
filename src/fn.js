@@ -4,11 +4,11 @@ export function wrap(object, property, fn) {
 }
 
 export function forEach(collection, fn) {
-	if (!Array.isArray(collection))
-		collection = Array.from(collection)
+	if (!collection) return
+	if (!Array.isArray(collection)) collection = Array.from(collection)
 
-	for (let i = 0; i < collection.length; i++) {
-		fn(collection[i])
+	for (let key in collection) {
+		fn(collection[key], key)
 	}
 }
 
@@ -67,7 +67,7 @@ export const fn = {
 	clamp(value, a, b) {
 		[a, b] = a < b ? [a, b] : [b, a]
 		return Math.min(b, Math.max(a, value))
-	}
+	},
 }
 
 

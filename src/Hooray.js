@@ -1,5 +1,8 @@
+import {forEach} from "./fn"
+
 export const Hooray = {
-	create() {
+	create(params = {}) {
+		const {name} = params
 		const hooray = []
 
 		Object.defineProperties(hooray, {
@@ -15,6 +18,30 @@ export const Hooray = {
 					return Hooray.set(this, ...params)
 				},
 			},
+
+			dump: {
+				value() {
+					function dumpArray(array) {
+						forEach(array, (value, key) => {
+							if(Array.isArray(value)) {
+								console.group(name + "[" + key + "]")
+								dumpArray(value)
+								console.groupEnd()
+							} else {
+								if("dump" in value) {
+									value.dump()
+								} else {
+									console.log(value)
+								}
+							}
+						})
+					}
+
+					console.group(name)
+					dumpArray(hooray)
+					console.groupEnd()
+				}
+			}
 		})
 
 		return hooray

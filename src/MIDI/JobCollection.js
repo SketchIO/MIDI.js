@@ -1,10 +1,10 @@
-import Debug from 'debug'
-const debug = Debug('MIDI.js:src/JobCollection.js')
+import Debug from "debug"
+const debug = Debug("MIDI.js:src/JobCollection.js")
 
-import dump from './dump'
-import {map} from "./fn"
+import dump from "../dump"
+import {map} from "../fn"
 
-export default class JobCollection {
+export class JobCollection {
 	constructor() {
 		this.jobs = new Set()
 		this.jobMetadata = new WeakMap()
@@ -13,17 +13,17 @@ export default class JobCollection {
 
 	track(job, ...tags) {
 		this.jobs.add(job)
-		this.jobMetadata.set(job, {status: 'pending', tags})
+		this.jobMetadata.set(job, {status: "pending", tags})
 		job.then(() => {
 			this.jobs.delete(job)
 			this.completedJobs.add(job)
-			this.jobMetadata.get(job).status = 'resolved'
+			this.jobMetadata.get(job).status = "resolved"
 		}).catch(error => {
 			this.jobMetadata.get(job).status = `rejected: ${error}`
 		})
 	}
 
-	waitForActiveJobs(options = {}) {
+	wait(options = {}) {
 		let except = options.except || []
 		if (!Array.isArray(except))
 			except = [except]
@@ -34,7 +34,7 @@ export default class JobCollection {
 		})
 
 		if (jobs.length) {
-			return Promise.all(jobs).then(() => this.waitForActiveJobs({except}))
+			return Promise.all(jobs).then(() => this.wait({except}))
 		}
 		return Promise.resolve()
 	}
@@ -43,7 +43,7 @@ export default class JobCollection {
 		const getRows = (jobSet) => {
 			return map(jobSet, (job) => {
 				const {status, tags} = this.jobMetadata.get(job)
-				return {status, tags: tags.join(', ')}
+				return {status, tags: tags.join(", ")}
 			})
 		}
 

@@ -1,1 +1,0 @@
-export {Pad} from "../Pad"

@@ -1,23 +1,20 @@
-import Debug from "debug"
-const debug = Debug("MIDI.js:src/WebAudioNote.js")
-
 import {MIDI} from "../MIDI"
-import createAction from "../createAction"
 import {WebAudio} from "./WebAudio"
-import {Buffers} from "./Buffers"
+import {buffers} from "./buffers"
 import {scale, clamp, forEach} from "../fn"
+import {GM} from "../GM"
 
 import {Sound} from "../Sound"
 
-export class SoundWA extends Sound {
+export class WASound extends Sound {
 	constructor(args) {
 		super(args)
 
+		const programID = this.channel.programID
+		const audioBuffer = buffers.get(programID, this.noteID)
+
 		this.volumeKnob = WebAudio.context.createGain()
 		this.volumeKnob.connect(WebAudio.context.destination)
-
-		const programID = this.channel.programID
-		const audioBuffer = Buffers.get(programID, this.noteID)
 
 		this.buffer = WebAudio.context.createBufferSource()
 		this.buffer.buffer = audioBuffer
@@ -36,7 +33,7 @@ export class SoundWA extends Sound {
 
 		MIDI.jobs.track(new Promise((resolve, reject) => {
 			this.buffer.onended = resolve
-		}))
+		}), "note", GM.note[this.noteID].keys[0])
 
 		for (let property of ["mute", "volume", "detune"]) {
 			this.updateProperty(property)
@@ -48,34 +45,22 @@ export class SoundWA extends Sound {
 	}
 
 	updateProperty(property) {
-		const channel = MIDI.channels[this.channelID]
-		const note = MIDI.note(this.channelID, this.noteID)
-		const programID = channel.programID
-		const noteID = this.noteID
-		const noteInfo = MIDI.programs[programID].notes[noteID]
-
 		const actions = {
 			mute() {
-				if (MIDI.mute || channel.mute)
+				if (MIDI.mute || this.channel.mute)
 					this.volumeKnob.gain.value = 0.0
 			},
 
 			volume() {
-				const volume = (MIDI.volume / 127) * (channel.volume / 127) * (this.velocity / 127)
-				debug("Adjusting volume: %j", {
-					"MIDI volume": MIDI.volume,
-					"Channel volume": channel.volume,
-					"Note velocity": this.velocity,
-				})
+				const volume = (MIDI.volume / 127) * (this.channel.volume / 127) * (this.velocity / 127)
 				this.volumeKnob.gain.cancelScheduledValues(MIDI.currentTime)
-				this.volumeKnob.gain.linearRampToValueAtTime(volume, MIDI.currentTime + (noteInfo.gainRamp || 0))
+				this.volumeKnob.gain.linearRampToValueAtTime(volume, MIDI.currentTime + this.note.gainRamp)
 			},
 
 			detune() {
 				if (WebAudio.context.hasDetune) {
 					// -1200 to 1200 - value in cents [100 cents per semitone]
-					const clampedDetune = clamp(channel.detune, -1200, 1200)
-					debug("Detuning: %s", clampedDetune)
+					const clampedDetune = clamp(this.channel.detune, -1200, 1200)
 					this.buffer.detune.value = clampedDetune
 				}
 			},
@@ -94,7 +79,7 @@ export class SoundWA extends Sound {
 
 		this.buffer.loop = false
 		this.volumeKnob.gain.cancelScheduledValues(MIDI.currentTime)
-		this.volumeKnob.gain.linearRampToValueAtTime(this.volumeKnob.gain.value, time)
+		this.volumeKnob.gain.linearRampToValueAtTime(this.volumeKnob.gain.value, MIDI.currentTime)
 		this.volumeKnob.gain.linearRampToValueAtTime(0, time + RELEASE)
 		this.buffer.stop(time + RELEASE)
 	}

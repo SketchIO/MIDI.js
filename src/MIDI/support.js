@@ -16,9 +16,9 @@
  TODO Separate container names from CODEC names and shortcut tests if they've already been done.
  */
 
-import {WebAudio} from "./WebAudio"
-import {AudioTag} from "./AudioTag"
-import {WebMIDI} from "./WebMIDI"
+import {WebAudio} from "../WebAudio/index"
+import {AudioTag} from "../AudioTag/index"
+import {WebMIDI} from "../WebMIDI/index"
 
 const tests = [
 	{
@@ -38,54 +38,54 @@ const tests = [
 	},
 ]
 
+/**
+ * Check if a SoundModule understands a given container and format using a test
+ * @param {SoundModule} SoundModule - The SoundModule you wish to test
+ * @param {Object} test - A test to run
+ * @returns {Promise} Resolves to TRUE if the SoundModule understands the
+ *   format, or FALSE otherwise. Will also resolve to FALSE if the test takes
+ *   too long to complete.
+ */
+function understands(SoundModule, test) {
+	return new Promise(resolve => {
+		const yes = () => resolve(true)
+		const no = () => resolve(false)
 
-// // Support stuff
-// withBest() {
-// 	const supportJob = MIDI.support()
-// 	MIDI.jobs.track(supportJob)
-// 	return supportJob.then(bundle => {
-// 		const best = bundle.best()
-// 		console.log(best)
-// 		return {
-// 			SoundModule: best.SoundModule,
-// 		}
-// 	})
-// },
+		setTimeout(no, 5000)
 
-function understands(SoundModule) {
-	return (
-		tests.map(({sample, ...info}) =>
-			SoundModule
-				.understands({sample, ...info})
-				.then(() => ({
-					...info,
-					understands: true,
-				}))
-				.catch(() => ({
-					...info,
-					understands: false,
-				}))))
+		SoundModule
+			.understands(test)
+			.then(truthy => truthy ? yes() : no())
+			.catch(no)
+	})
+}
+
+function runTests(SoundModule) {
+	const jobs = tests.map(({sample, ...info}) => {
+		return understands(SoundModule, {sample, ...info}).then(result => ({
+			...info,
+			understands: result
+		}))
+	})
+
+	return Promise.all(jobs).then(tests => ({
+		SoundModule,
+		tests
+	}))
 }
 
 export function support() {
-	return Promise.all(
+	const jobs =
 		[WebMIDI, AudioTag, WebAudio]
 			.filter(SoundModule => SoundModule.isSupported())
-			.map(SoundModule => new Promise((resolve) => {
-				Promise.all(understands(SoundModule)).then((results) => {
-					resolve({
-						SoundModule,
-						understands: results,
-					})
-				})
-			})),
-	).then(results => {
-		Object.assign(results, {
-			best() {
+			.map(runTests)
+
+	return Promise.all(jobs).then(results => {
+		Object.defineProperty(results, "best", {
+			value() {
 				return results[results.length - 1]
 			},
 		})
-
 		return results
 	})
 }

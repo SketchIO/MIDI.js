@@ -1,19 +1,8 @@
 import {MIDI} from './MIDI'
-import {isNumber} from "./fn"
-import {knobs} from "./knobs"
 
 export class Channel {
 	constructor(channelID) {
 		this.channelID = channelID
-
-		knobs.add(this, `Channel ${channelID}`, "mute")
-		knobs.add(this, `Channel ${channelID}`, "volume")
-		knobs.add(this, `Channel ${channelID}`, "detune")
-		knobs.add(this, `Channel ${channelID}`, {
-			property: "programID",
-			comparator: isNumber,
-			defaultValue: 0,
-		})
 	}
 
 	get program() {
@@ -29,3 +18,5 @@ export class Channel {
 		return MIDI.noteOff(this.channelID, noteID, delay)
 	}
 }
+
+window.Channel = Channel

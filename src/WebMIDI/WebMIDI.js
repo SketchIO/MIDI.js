@@ -226,6 +226,7 @@
 
 
 export const WebMIDI = {
+	name: "WebMIDI",
 	isSupported() {
 		return navigator.requestMIDIAccess
 	},

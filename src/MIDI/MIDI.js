@@ -1,19 +1,17 @@
-import createAction from "./createAction"
-import JobCollection from "./JobCollection"
+import createAction from "../createAction"
+import {Channel} from "../Channel"
+import {isNumber, forEach} from "../fn"
+
+import {JobCollection} from "./JobCollection"
 import {knobs} from "./knobs"
-
-import {GM} from "./GM"
-import {Channel} from "./Channel"
-import {Programs} from "./Programs"
-import {isNumber} from "./fn"
-
+import {programs} from "./programs"
+import {sounds} from "./sounds"
 import {support} from "./support"
-
-import {AudioTag} from "./AudioTag"
-import {WebAudio} from "./WebAudio"
-import {WebMIDI} from "./WebMIDI"
-
-import {Pad} from "./Pad"
+import {AudioTag} from "../AudioTag/index"
+import {WebAudio} from "../WebAudio/index"
+import {WebMIDI} from "../WebMIDI/index"
+import {GM} from "../GM"
+import {Pad} from "../Pad"
 
 // import {version} from "../package.json"
 const version = "0.5.0"
@@ -25,9 +23,14 @@ export const MIDI = {
 
 	jobs: new JobCollection(),
 	knobs,
-	programs: Programs,
+	programs,
+	sounds,
 
+	support,
+	WebAudio,
+	AudioTag,
 	Pad,
+	GM,
 
 	/**
 	 * Get note data
@@ -88,11 +91,8 @@ export const MIDI = {
 		if (SoundModule)
 			SoundModule.disconnect()
 		SoundModule = sm
-	},
+	}
 }
-
-MIDI.knobs.add(MIDI, "MIDI", "mute")
-MIDI.knobs.add(MIDI, "MIDI", "volume")
 
 const channels = []
 Object.defineProperty(MIDI, "channels", {
@@ -101,3 +101,34 @@ Object.defineProperty(MIDI, "channels", {
 		for (let channelID = channels.length; channelID < channelCount;
 channelID++) { channels.push(new Channel(channelID)) }
 channels.splice(channelCount) }, })
+
+
+knobs.add({
+	property: "mute",
+	comparator(b) {
+		return !!b
+	},
+	defaultValue: false,
+	addMaster: true,
+})
+
+knobs.add({
+	property: "volume",
+	comparator: isNumber,
+	defaultValue: 127,
+	addMaster: true,
+})
+
+knobs.add({
+	property: "detune",
+	comparator(n) {
+		return isNumber && n >= -1200 && n <= 1200
+	},
+	defaultValue: 0.0,
+})
+
+knobs.add({
+	property: "programID",
+	comparator: isNumber,
+	defaultValue: 0,
+})

@@ -1,67 +1,12 @@
-import {MIDI} from "../MIDI"
+import {MIDI, sounds} from "../MIDI"
 import {ObjectPool} from "./ObjectPool"
-import {Collections} from "../Collections"
 import dataURI from "../dataURI"
 
 import {Hooray} from "../Hooray"
 import {FastTimer} from "./FastTimer"
 import {clamp, scale} from "../fn"
 import {Channel} from "../Channel"
-
-let action
-export const PropertyChanger = {
-	startUpdating() {
-		action = MIDI.knobs.onChange((selector, property, newValue) => {
-			if (selector instanceof Channel) {
-				const bank = AudioTag.sounds.get(selector.channelID)
-				if (bank)
-					bank.forEach(sound => sound.updateProperty(property))
-			} else {
-				AudioTag.sounds.forEach(bank =>
-					bank.forEach(sound =>
-						sound.updateProperty(property)))
-			}
-		})
-	},
-
-	stopUpdating() {
-		if (action)
-			action.cancel()
-	},
-}
-
-import {Sound} from "../Sound"
-
-class SoundAT extends Sound {
-	constructor(args) {
-		super(args)
-		this.tag = AudioTag.tags.obtain()
-		this.tag.src = this.note.noteData
-		this.tag.play()
-	}
-
-	updateProperty(property) {
-		switch (property) {
-			case "mute":
-				if (MIDI.mute || this.channel.mute)
-					this.tag.volume = 0
-				break
-			case "volume":
-				const volume =
-					(MIDI.volume / 127) *
-					(this.channel.volume / 127) *
-					(this.velocity / 127)
-				this.tag.volume = volume
-		}
-	}
-
-	stop() {
-		this.tag.pause()
-		AudioTag.tags.release(this.tag)
-	}
-}
-
-const sounds = Hooray.create()
+import {ATSound} from "./ATSound"
 
 FastTimer.start(function () {
 	sounds.forEach(soundbank => {
@@ -80,16 +25,14 @@ FastTimer.start(function () {
 
 function startSound(channelID, noteID, velocity) {
 	stopSound(channelID, noteID)
-
-	const note = MIDI.note(channelID, noteID)
-	if (note) {
-		sounds.set(channelID, noteID, new SoundAT({
-			channelID,
-			noteID,
-			velocity,
-			startTime: MIDI.currentTime,
-		}))
-	}
+	if (!MIDI.note(channelID, noteID)) return
+	console.log("START SOUND",channelID, noteID, velocity, MIDI.currentTime)
+	sounds.set(channelID, noteID, new ATSound({
+		channelID,
+		noteID,
+		velocity,
+		startTime: MIDI.currentTime,
+	}))
 }
 
 function stopSound(channelID, noteID) {
@@ -98,6 +41,7 @@ function stopSound(channelID, noteID) {
 }
 
 export const AudioTag = {
+	name: "AudioTag",
 	timeouts: [],
 	sounds,
 	tags: new ObjectPool(10, () => new Audio()),
@@ -149,7 +93,6 @@ export const AudioTag = {
 		if (MIDI.SoundModule) MIDI.SoundModule.disconnect()
 		MIDI.SoundModule = AudioTag
 		FastTimer.attach()
-		PropertyChanger.startUpdating()
 	},
 
 	disconnect() {
@@ -161,9 +104,8 @@ export const AudioTag = {
 			tag.stop()
 		})
 
-		AudioTags.forceReset()
+		AudioTags.drain()
 		FastTimer.detach()
-		PropertyChanger.stopUpdating()
 	},
 
 	noteOn(channelID, noteID, velocity, startTime = 0) {

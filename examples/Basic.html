@@ -21,32 +21,36 @@
 		<pre id="jobs"></pre>
 		<script>
 			window.onload = function () {
-				MIDI.autoconnect()
-//				MIDI.WebAudio.connect()
 //				MIDI.AudioTag.connect()
-				MIDI.volume = 127
+				MIDI.autoconnect()
 				MIDI.channels = 1
-				MIDI.channels[0].volume = 100
 
 				MIDI.programs.load({
 					programID: 0,
 //					program: './soundfont/acoustic_grand_piano2-mp3.json'
-					program: "./soundfont/synth_drum-mp3.json"
+					program: "./soundfont/synth_drum-mp3.json",
 				})
 
-				MIDI.jobs.waitForActiveJobs().then(function() {
-					console.log('Ready!')
-					for(let i = 0; i < 8; i += 1) {
-						try {
-							console.log("Playing", "A" + i)
-							MIDI.noteOn(0, "A" + i, 127, 1 + (i / 8))
-							MIDI.noteOff(0, "A" + i, 5 + (i / 8))
-						} catch(error) {
-							console.log(error)
+				MIDI.jobs.wait().then(function () {
+					let speed = 2
+					function play() {
+						let i
+						for (i = 0; i < 8; i += 1) {
+							const note = "A" + i
+							const startTime = MIDI.currentTime
+							MIDI.noteOff(0, note)
+							MIDI.noteOn(0, note, 127, startTime + (i / speed))
+						}
+
+						if(speed < 32) {
+							speed *= 2
+							setTimeout(play, (i / speed) * 1000)
 						}
 					}
-				}).catch(function(error) {
-					console.log('Failed:', error)
+
+					play()
+				}).catch(function (error) {
+					console.log("Failed:", error)
 					document.body.style.backgroundColor = "red"
 				})
 			}
