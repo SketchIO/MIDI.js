@@ -22,7 +22,7 @@ export class WASound extends Sound {
 
 		forEach(["loopStart", "loopEnd"], property => {
 			const value = this.note[property]
-			if (value) {
+			if (typeof value !== "undefined") {
 				this.buffer[property] = value
 				this.buffer.loop = true
 			}
