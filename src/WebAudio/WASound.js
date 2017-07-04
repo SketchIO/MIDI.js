@@ -1,6 +1,6 @@
 import {MIDI} from "../MIDI"
 import {WebAudio} from "./WebAudio"
-import {buffers} from "./buffers"
+import {BufferStore} from "./BufferStore"
 import {scale, clamp, forEach} from "../fn"
 import {GM} from "../GM"
 
@@ -11,7 +11,7 @@ export class WASound extends Sound {
 		super(args)
 
 		const programID = this.channel.programID
-		const audioBuffer = buffers.get(programID, this.noteID)
+		const audioBuffer = BufferStore.get(programID, this.noteID)
 
 		this.volumeKnob = WebAudio.context.createGain()
 		this.volumeKnob.connect(WebAudio.context.destination)
@@ -19,7 +19,7 @@ export class WASound extends Sound {
 		this.buffer = WebAudio.context.createBufferSource()
 		this.buffer.buffer = audioBuffer
 		this.buffer.connect(this.volumeKnob)
-
+		
 		forEach(["loopStart", "loopEnd"], property => {
 			const value = this.note[property]
 			if (typeof value !== "undefined") {

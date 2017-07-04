@@ -10,7 +10,8 @@ const rename = require('gulp-rename')
 const plumber = require('gulp-plumber')
 const connect = require('gulp-connect')
 const gulpUglify = require('gulp-uglify')
-const debug = require('gulp-debug')
+const gulpDebug = require('gulp-debug')
+const gulpESDoc = require('gulp-esdoc')
 
 const rollupCJS = require('rollup-plugin-commonjs')
 const rollupBabel = require('rollup-plugin-babel')
@@ -23,9 +24,13 @@ const rollupNR = require('rollup-plugin-node-resolve')
 const SRC = './src'
 const LIB = './lib'
 const DIST = './dist'
+const DOCS = './docs'
 
 const ALL_FILES = '**/*.js'
 const BROWSER_ENTRYPOINT = 'browser.js'
+const README = 'README.md'
+
+const ESDocConfig = require('./.esdoc.json')
 
 gulp.task('build:forNode', () =>
 	gulp.src(path.join(SRC, ALL_FILES))
@@ -54,7 +59,7 @@ gulp.task('rebuild:forNode', ['build:forNode'], () =>
 
 gulp.task('build:forBrowser', () =>
 	gulp.src([path.join(SRC, ALL_FILES), './package.json'])
-		.pipe(debug({title: "build:forBrowser"}))
+		.pipe(gulpDebug({title: "build:forBrowser"}))
 		.pipe(plumber())
 		.pipe(sourcemaps.init({}))
 		.pipe(rollup({
@@ -96,6 +101,12 @@ gulp.task('build:forBrowser', () =>
 
 gulp.task('rebuild:forBrowser', ['build:forBrowser'], () =>
 	gulp.watch(path.join(SRC, ALL_FILES), ['build:forBrowser']))
+
+gulp.task('build:docs', done =>
+	gulp.src([path.join(SRC, ALL_FILES), README]).pipe(gulpESDoc(ESDocConfig)))
+
+gulp.task('rebuild:docs', ['build:docs'], () =>
+	gulp.watch(path.join(SRC, ALL_FILES), ['build:docs']))
 
 gulp.task('build', ['build:forNode', 'build:forBrowser'])
 gulp.task('rebuild', ['rebuild:forNode', 'rebuild:forBrowser'])

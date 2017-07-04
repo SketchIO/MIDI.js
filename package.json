@@ -26,6 +26,7 @@
     "gulp-cached": "^1.1.1",
     "gulp-connect": "^5.0.0",
     "gulp-debug": "^3.1.0",
+    "gulp-esdoc": "^0.4.1",
     "gulp-plumber": "^1.1.0",
     "gulp-rename": "^1.2.2",
     "gulp-rollup": "^2.11.0",

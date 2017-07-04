@@ -3,54 +3,23 @@ import {ObjectPool} from "./ObjectPool"
 import dataURI from "../dataURI"
 
 import {Hooray} from "../Hooray"
-import {FastTimer} from "./FastTimer"
-import {clamp, scale} from "../fn"
+import {Task} from "../Task"
+import {clamp, scale, forEach} from "../fn"
 import {Channel} from "../Channel"
 import {ATSound} from "./ATSound"
+import {ezDefine} from "../ezDefine"
+import {SoundModule} from "../SoundModule"
 
-FastTimer.start(function () {
-	sounds.forEach(soundbank => {
-		soundbank.forEach(sound => {
-			const {note, startTime, tag} = sound
-			if (note.loopEnd) {
-				const now = tag.currentTime
-				if (now >= note.loopEnd) {
-					const loopStart = note.loopStart || 0
-					tag.currentTime = loopStart
-				}
-			}
-		})
-	})
-})
-
-function startSound(channelID, noteID, velocity) {
-	stopSound(channelID, noteID)
-	if (!MIDI.note(channelID, noteID)) return
-	console.log("START SOUND",channelID, noteID, velocity, MIDI.currentTime)
-	sounds.set(channelID, noteID, new ATSound({
-		channelID,
-		noteID,
-		velocity,
-		startTime: MIDI.currentTime,
-	}))
-}
-
-function stopSound(channelID, noteID) {
-	const sound = sounds.get(channelID, noteID)
-	if (sound) sound.stop()
-}
-
-export const AudioTag = {
-	name: "AudioTag",
-	timeouts: [],
-	sounds,
-	tags: new ObjectPool(10, () => new Audio()),
-
-	isSupported() {
+/**
+ * @summary I play sound using &lt;audio&gt; tags
+ * @description Use me when the WebAudio API is not available. Otherwise, don't.
+ */
+export class AudioTag extends SoundModule {
+	static isSupported() {
 		return window.Audio
-	},
+	}
 
-	understands({container, codec, sample}) {
+	static understands({container, codec, sample}) {
 		const MIME = "audio/" + container + "; codecs=\"" + codec + "\""
 		const src = "data:" + MIME + ";base64," + sample
 
@@ -86,49 +55,96 @@ export const AudioTag = {
 			audio.src = src
 			audio.load()
 		})
-	},
+	}
 
-	connect() {
+	static connect() {
 		if (!AudioTag.isSupported()) throw new Error("SoundModule cannot be connected")
 		if (MIDI.SoundModule) MIDI.SoundModule.disconnect()
-		MIDI.SoundModule = AudioTag
-		FastTimer.attach()
-	},
+		MIDI.SoundModule = new AudioTag()
+	}
+
+	constructor() {
+		super()
+		this.timeouts = []
+		this.tags = new ObjectPool({
+			size: 10,
+			onCreate() {
+				return new Audio()
+			}, onRemove(tag) {
+				tag.stop()
+			},
+		})
+
+		this.looper = Task.start(function () {
+			sounds.forEach(soundbank => {
+				soundbank.forEach(sound => {
+					const {note, startTime, tag} = sound
+					if (note.loopEnd) {
+						const now = tag.currentTime
+						if (now >= note.loopEnd) {
+							const loopStart = note.loopStart || 0
+							tag.currentTime = loopStart
+						}
+					}
+				})
+			})
+		})
+	}
 
 	disconnect() {
-		AudioTags.timeouts.forEach(function (timeout) {
-			clearTimeout(timeout)
-		})
+		forEach(this.timeouts, clearTimeout)
+		this.tags.drain()
+		this.looper.stop()
+	}
 
-		AudioTags.tags.forEach(function (tag) {
-			tag.stop()
-		})
-
-		AudioTags.drain()
-		FastTimer.detach()
-	},
-
-	noteOn(channelID, noteID, velocity, startTime = 0) {
-		if (startTime) {
-			AudioTag.timeouts.push(setTimeout(function () {
-				startSound(channelID, noteID, velocity)
-			}, startTime * 1000))
+	noteOn(channelID, noteID, velocity, startTime) {
+		startTime = startTime || this.currentTime()
+		const now = this.currentTime()
+		const offset = startTime - now
+		if (offset > 0) {
+			this.callLater("noteOn", [channelID, noteID, velocity, startTime], offset * 1000)
 		} else {
-			startSound(channelID, noteID, velocity)
+			this.noteOff(channelID, noteID)
+			if (!MIDI.note(channelID, noteID)) return
+			sounds.set(channelID, noteID, new ATSound({
+				tag: this.tags.obtain(),
+				channelID,
+				noteID,
+				velocity,
+				startTime: MIDI.currentTime,
+			}))
 		}
-	},
+	}
 
-	noteOff(channelID, noteID, endTime = 0) {
-		if (endTime) {
-			AudioTag.timeouts.push(setTimeout(function () {
-				stopSound(channelID, noteID)
-			}, endTime * 1000))
+	noteOff(channelID, noteID, endTime) {
+		endTime = endTime || this.currentTime()
+		const now = this.currentTime()
+		const offset = endTime - now
+
+		if (offset > 0) {
+			this.callLater("noteOff", [channelID, noteID, endTime], offset * 1000)
 		} else {
 			stopSound(channelID, noteID)
 		}
-	},
 
+		function stopSound(channelID, noteID) {
+			const sound = sounds.get(channelID, noteID)
+			if (sound) sound.stop()
+		}
+	}
+
+	/**
+	 * @inheritdoc
+	 * @description NOTE: AudioTag uses the performance API to get a high
+	 *   resolution timer
+	 */
 	currentTime() {
 		return performance.now() / 1000
-	},
+	}
+
+	callLater(method, params, when) {
+		this.timeouts.push(setTimeout(() => {
+			this[method].apply(this, params)
+		}, when))
+	}
 }

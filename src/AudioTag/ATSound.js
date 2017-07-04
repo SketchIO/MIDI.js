@@ -1,12 +1,28 @@
 import {MIDI} from "../MIDI"
 import {Sound} from "../Sound"
 import {AudioTag} from "./AudioTag"
+import {ObjectPool} from "./ObjectPool"
 
+/**
+ * I play sound using HTMLAudioElements
+ * @see https://developer.mozilla.org/en-US/docs/Web/API/HTMLAudioElement
+ */
 export class ATSound extends Sound {
-	constructor(args) {
+
+	/**
+	 * Construct a new sound that will play using HTMLAudioElements
+	 * @param {Object} obj
+	 * @param {HTMLAudioElement} obj.tag
+	 * @param {number} obj.channelID
+	 * @param {NoteID} obj.noteID
+	 * @param {MIDIParam} obj.velocity
+	 * @param {timestamp} obj.startTime
+	 * @see Sound
+	 */
+	constructor({tag, ...args}) {
 		super(args)
 
-		this.tag = AudioTag.tags.obtain()
+		this.tag = tag
 		this.tag.src = this.note.noteData
 
 		/**
@@ -23,7 +39,12 @@ export class ATSound extends Sound {
 			const onTimeUpdate = () => {
 				if (this.tag.currentTime < offset)
 					this.tag.currentTime = offset
-				this.tag.play()
+				/**
+				 * Workaround chrome bug
+				 * https://bugs.chromium.org/p/chromium/issues/detail?id=593273
+				 * https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
+				 */
+				this.playToken = this.tag.play()
 				this.tag.removeEventListener("loadedmetadata", onTimeUpdate)
 			}
 			this.tag.addEventListener("loadedmetadata", onTimeUpdate)
@@ -48,7 +69,13 @@ export class ATSound extends Sound {
 	}
 
 	stop() {
-		this.tag.pause()
-		AudioTag.tags.release(this.tag)
+		if (this.playToken) {
+			this.playToken.then(() => {
+				this.tag.pause()
+				ObjectPool.release(this.tag)
+			})
+		} else {
+			ObjectPool.release(this.tag)
+		}
 	}
 }

@@ -6,15 +6,12 @@ import {Hooray} from "../Hooray"
 import {ezDefine} from "../ezDefine"
 
 let eventResponder
-export const buffers = Hooray.create({
-	name: "WebAudio buffers"
-})
+export const BufferStore = Hooray.create({name})
 
-
-ezDefine(buffers, {
+ezDefine(BufferStore, {
 	startProcessing() {
-		MIDI.programs.map((program, programID) => buffers.processProgram(programID, program))
-		eventResponder = MIDI.programs.onLoad(buffers.processProgram)
+		MIDI.programs.map((program, programID) => BufferStore.processProgram(programID, program))
+		eventResponder = MIDI.programs.onLoad(BufferStore.processProgram)
 	},
 
 	stopProcessing() {
@@ -26,7 +23,7 @@ ezDefine(buffers, {
 		for (const [noteID, note] of program.notes.entries()) {
 			if (!note) continue
 			const {noteData} = note
-			jobs.push(buffers.processNote(programID, noteID, noteData))
+			jobs.push(BufferStore.processNote(programID, noteID, noteData))
 		}
 
 		const processJob = Promise.all(jobs)
@@ -54,7 +51,7 @@ ezDefine(buffers, {
 
 		return (
 			job
-				.then(audioBuffer => buffers.set(programID, noteID, audioBuffer))
+				.then(audioBuffer => BufferStore.set(programID, noteID, audioBuffer))
 				.catch(error => console.log(error)))
 	},
 })

@@ -21,30 +21,41 @@
 		<pre id="jobs"></pre>
 		<script>
 			window.onload = function () {
-//				MIDI.AudioTag.connect()
 				MIDI.autoconnect()
+//				MIDI.AudioTag.connect()
 				MIDI.channels = 1
 
 				MIDI.programs.load({
 					programID: 0,
-//					program: './soundfont/acoustic_grand_piano2-mp3.json'
-					program: "./soundfont/synth_drum-mp3.json",
+					program: './soundfont/acoustic_grand_piano2-mp3.json'
+//					program: "./soundfont/synth_drum-mp3.json",
 				})
 
 				MIDI.jobs.wait().then(function () {
-					let speed = 2
+					let segmentlength = 4
+					const notes = ["A", "B", "C#", "G"]
+
 					function play() {
+						const now = MIDI.currentTime
 						let i
+						const notebase = notes[Math.round(Math.random() * (notes.length - 1))]
 						for (i = 0; i < 8; i += 1) {
-							const note = "A" + i
-							const startTime = MIDI.currentTime
-							MIDI.noteOff(0, note)
-							MIDI.noteOn(0, note, 127, startTime + (i / speed))
+							const note = notebase + i
+							const timeslice = (segmentlength / 8)
+							const timestamp = now + timeslice * i
+							MIDI.noteOn(0, note, 127, timestamp)
 						}
 
-						if(speed < 32) {
-							speed *= 2
-							setTimeout(play, (i / speed) * 1000)
+						if (segmentlength > 0) {
+							MIDI.after(now + segmentlength, play)
+							segmentlength -= 1
+						} else {
+							MIDI.after(now + segmentlength, function() {
+								for (let i = 0; i < 8; i += 1) {
+									const note = "A" + i
+									MIDI.noteOff(0, note, MIDI.currentTime + 1)
+								}
+							})
 						}
 					}
 

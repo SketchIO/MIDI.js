@@ -12,11 +12,17 @@ import {WebAudio} from "../WebAudio/index"
 import {WebMIDI} from "../WebMIDI/index"
 import {GM} from "../GM"
 import {Pad} from "../Pad"
+import {Task} from "../Task"
 
 // import {version} from "../package.json"
 const version = "0.5.0"
 
 let SoundModule
+
+/**
+ * I make sounds
+ * @namespace MIDI
+ */
 export const MIDI = {
 	VERSION: version,
 	format: null,
@@ -91,6 +97,20 @@ export const MIDI = {
 		if (SoundModule)
 			SoundModule.disconnect()
 		SoundModule = sm
+	},
+
+	/**
+	 * Wait until the active SoundModule passes some time threshold
+	 * @param {timestamp} timestamp
+	 * @param {Function} fn
+	 */
+	after(timestamp, fn) {
+		const task = Task.start(() => {
+			if(MIDI.currentTime >= timestamp) {
+				task.stop()
+				fn()
+			}
+		})
 	}
 }
 

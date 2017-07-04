@@ -1,6 +1,20 @@
 const debug = require("debug")("MIDI.js:src/webaudio/AudioContext.js")
 
+/**
+ * @external {AudioContext.Instance} https://developer.mozilla.org/en-US/docs/Web/API/AudioContext
+ */
+
+/**
+ * I provide an audio context on platforms that support the WebAudio API
+ * @see https://developer.mozilla.org/en-US/docs/Web/API/AudioContext
+ * @type {Object}
+ * @property {Function} get
+ */
 export const AudioContext = {
+
+	/**
+	 * @returns {AudioContext.Instance}
+	 */
 	get() {
 		const ContextConstructor = window.AudioContext || window.webkitAudioContext
 		if (!ContextConstructor) return
