@@ -1,14 +1,10 @@
-import {MIDI, sounds} from "../MIDI"
-import {ObjectPool} from "./ObjectPool"
-import dataURI from "../dataURI"
-
-import {Hooray} from "../Hooray"
-import {Task} from "../Task"
-import {clamp, scale, forEach} from "../fn"
-import {Channel} from "../Channel"
-import {ATSound} from "./ATSound"
-import {ezDefine} from "../ezDefine"
-import {SoundModule} from "../SoundModule"
+import dataURI from '../dataURI'
+import {forEach} from '../fn'
+import {MIDI, sounds} from '../MIDI'
+import {SoundModule} from '../SoundModule'
+import {Task} from '../Task'
+import {ATSound} from './ATSound'
+import {ObjectPool} from './ObjectPool'
 
 /**
  * @summary I play sound using &lt;audio&gt; tags
@@ -82,8 +78,7 @@ export class AudioTag extends SoundModule {
 					if (note.loopEnd) {
 						const now = tag.currentTime
 						if (now >= note.loopEnd) {
-							const loopStart = note.loopStart || 0
-							tag.currentTime = loopStart
+							tag.currentTime = note.loopStart || 0
 						}
 					}
 				})

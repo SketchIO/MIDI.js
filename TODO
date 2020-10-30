@@ -16,3 +16,16 @@ TODO
 	------------------------------------------------------
 	* List of Developers who work w/ MIDI.js
 		???
+
+
+Webpack
+	library -> MIDI
+	bundles
+		MIDI.js
+			Main MIDI file
+		WebMIDI.js
+		WebAudio.js
+		AudioTag.js
+		GeneralMIDI.js
+		Synesthesia.js
+
