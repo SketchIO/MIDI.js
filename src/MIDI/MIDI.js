@@ -12,7 +12,7 @@ import {WebAudio} from '../WebAudio/index'
 import {WebMIDI} from '../WebMIDI/index'
 import {GM} from '../GM'
 import {Pad} from '../Pad'
-import {Task} from '../Task'
+import {startTask, Task} from '../startTask'
 
 // import {version} from "../package.json"
 const version = '0.5.0'
@@ -97,10 +97,10 @@ export const MIDI = {
 	 * @param {Function} fn
 	 */
 	after(timestamp, fn) {
-		const task = Task.start(() => {
+		const stopTask = startTask(() => {
 			if (MIDI.currentTime >= timestamp) {
-				task.stop()
 				fn()
+				stopTask()
 			}
 		})
 	}

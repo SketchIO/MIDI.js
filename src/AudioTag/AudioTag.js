@@ -2,7 +2,7 @@ import dataURI from '../dataURI'
 import {forEach} from '../fn'
 import {MIDI, sounds} from '../MIDI'
 import {SoundModule} from '../SoundModule'
-import {Task} from '../Task'
+import {startTask, Task} from '../startTask'
 import {ATSound} from './ATSound'
 import {ObjectPool} from './ObjectPool'
 
@@ -71,7 +71,7 @@ export class AudioTag extends SoundModule {
 			},
 		})
 
-		this.looper = Task.start(function () {
+		this.stopTick = startTask(function () {
 			sounds.forEach(soundbank => {
 				soundbank.forEach(sound => {
 					const {note, startTime, tag} = sound
@@ -89,7 +89,7 @@ export class AudioTag extends SoundModule {
 	disconnect() {
 		forEach(this.timeouts, clearTimeout)
 		this.tags.drain()
-		this.looper.stop()
+		this.stopTick()
 	}
 
 	noteOn(channelID, noteID, velocity, startTime) {

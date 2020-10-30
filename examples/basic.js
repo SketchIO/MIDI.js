@@ -1,51 +1,35 @@
 import {MIDI} from '../src'
 
 global.MIDI = MIDI
+startup()
+document.addEventListener('pointerdown', playSomeSounds)
 
 async function startup() {
 	await MIDI.autoconnect()
 	MIDI.channels = 1
-
-}
-async function main() {
 	const {default: program} = await import('./soundfont/acoustic_grand_piano-ogg.json')
-	MIDI.programs.load({
+	await MIDI.programs.load({
 		programID: 0,
 		program
 	})
+	await MIDI.jobs.wait()
 
-	MIDI.jobs.wait().then(function () {
-		let segmentlength = 2
-		const notes = ['A', 'C#', 'G', 'B', 'F#', 'D']
-
-		function play() {
-			const now = MIDI.currentTime
-			let i
-			const notebase = notes[Math.round(Math.random() * (notes.length - 1))]
-			for (i = 0; i < 8; i += 1) {
-				const note = notebase + i
-				const timeslice = (segmentlength / 4)
-				const timestamp = now + timeslice * i
-				console.log({note, timeslice, timestamp})
-				MIDI.noteOn(0, note, 127, timestamp)
-			}
-
-			if (segmentlength > 0) {
-				MIDI.after(now + segmentlength, play)
-				segmentlength -= 1
-			} else {
-				MIDI.after(now + segmentlength, function () {
-					for (let i = 0; i < 8; i += 1) {
-						const note = 'B' + i
-						MIDI.noteOff(0, note, MIDI.currentTime + 1)
-					}
-				})
-			}
-		}
-
-		play()
+	document.addEventListener('pointermove', e => {
+		const {clientX} = e
+		const {innerWidth} = window
+		const fraction = clientX / innerWidth
+		MIDI.channels[0].detune = ((fraction * -2) + 1) * 1200
 	})
 }
 
-startup()
-document.addEventListener('pointerdown', main)
+async function playSomeSounds() {
+	const notes = ['A', 'C', 'G', 'B', 'F', 'D#']
+	const beatCount = 1/4
+	let start = MIDI.currentTime
+	for (let i = 0; i < 8; i++) {
+		const note = notes[Math.round(Math.random() * (notes.length - 1))]
+		const offset = beatCount * i
+		MIDI.noteOn(0, `${note}${Math.floor(Math.random() * 7)}`, 127, start + offset)
+		MIDI.noteOff(0, `${note}${Math.floor(Math.random() * 7)}`, start + offset + beatCount / 120)
+	}
+}
