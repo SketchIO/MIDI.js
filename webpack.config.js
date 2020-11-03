@@ -19,5 +19,9 @@ module.exports = {
 	plugins: [new HtmlWebpackPlugin()],
 	devServer: {
 		port: 3000
+	},
+	output: {
+		library: 'MIDI',
+		libraryTarget: 'var'
 	}
 }
